@@ -1,0 +1,13 @@
+# .gitignore (project root)
+__pycache__/
+*.pyc
+db.sqlite3
+.env
+.venv/
+*.log
+*.sqlite3
+/media/
+*.egg-info/
+dist/
+.idea/
+.vscode/
