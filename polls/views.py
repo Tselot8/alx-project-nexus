@@ -1,7 +1,14 @@
 from django.db import transaction, models
+from rest_framework import generics, permissions
 from django.utils import timezone
 from django.shortcuts import get_object_or_404
 from .models import Poll, Option, Vote
+from .serializers import (
+    PollSerializer,
+    PollCreateSerializer,
+    PollDetailSerializer,
+    OptionSerializer
+)
 
 def cast_vote(user, poll_id, option_id):
     with transaction.atomic():
@@ -48,3 +55,39 @@ def cast_vote(user, poll_id, option_id):
         option.refresh_from_db(fields=["votes_count"])
 
         return vote, option.votes_count
+
+class PollListCreateView(generics.ListCreateAPIView):
+    queryset = Poll.objects.all().select_related('category', 'created_by')
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_serializer_class(self):
+        if self.request.method == "POST":
+            return PollCreateSerializer
+        return PollSerializer
+
+
+class PollDetailView(generics.RetrieveUpdateDestroyAPIView):
+    queryset = Poll.objects.all().select_related('category', 'created_by')
+    serializer_class = PollDetailSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def perform_update(self, serializer):
+        serializer.save()
+
+
+# ---- OPTIONS ----
+
+class OptionCreateView(generics.CreateAPIView):
+    serializer_class = OptionSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def perform_create(self, serializer):
+        poll_id = self.kwargs['poll_id']
+        serializer.save(poll_id=poll_id)
+
+
+class OptionUpdateDeleteView(generics.RetrieveUpdateDestroyAPIView):
+    queryset = Option.objects.all()
+    serializer_class = OptionSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
