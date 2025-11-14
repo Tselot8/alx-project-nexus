@@ -47,7 +47,10 @@ INSTALLED_APPS = [
     'drf_yasg',
     # local apps
     'polls.apps.PollsConfig',
+    'accounts',
 ]
+
+AUTH_USER_MODEL = 'accounts.User'
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
