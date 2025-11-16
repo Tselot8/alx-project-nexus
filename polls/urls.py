@@ -3,7 +3,8 @@ from .views import (
     PollListCreateView,
     PollDetailView,
     OptionCreateView,
-    OptionUpdateDeleteView
+    OptionUpdateDeleteView,
+    PollResultsView
 )
 
 urlpatterns = [
@@ -13,4 +14,7 @@ urlpatterns = [
     # Options
     path('<uuid:poll_id>/options/', OptionCreateView.as_view(), name='option-create'),
     path('options/<uuid:pk>/', OptionUpdateDeleteView.as_view(), name='option-update-delete'),
+
+    # Results
+    path('<uuid:poll_id>/results/', PollResultsView.as_view(), name='poll-results'),
 ]
