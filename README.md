@@ -95,7 +95,7 @@ All tests are passing, ensuring reliability and stability.
 1. Clone the repository:  
    ```
    git clone https://github.com/Tselot8/alx-project-nexus.git
-  ```
+   ```
 2. Install dependencies and set up the virtual environment.
 
 3. Apply migrations:
