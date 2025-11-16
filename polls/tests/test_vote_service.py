@@ -52,3 +52,18 @@ def test_vote_same_option_no_change():
 
     assert Vote.objects.count() == 1
     assert count == 1  # should remain the same
+
+def test_cannot_vote_on_expired_poll():
+    user = User.objects.create_user(email="c@c.com", username="c", password="pass")
+    cat = Category.objects.create(name="General")
+    poll = Poll.objects.create(
+        question="Old poll?",
+        category=cat,
+        created_by=user,
+        expires_at=timezone.now() - timezone.timedelta(days=1)
+    )
+    opt = Option.objects.create(poll=poll, option_text="Option1")
+
+    import pytest
+    with pytest.raises(ValueError):
+        cast_vote(user, poll.id, opt.id)

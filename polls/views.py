@@ -1,5 +1,5 @@
 from django.db import transaction, models
-from rest_framework import generics, permissions
+from rest_framework import generics, permissions, status
 from django.utils import timezone
 from django.shortcuts import get_object_or_404
 from .models import Poll, Option, Vote
@@ -14,8 +14,6 @@ from .serializers import (
     PollResultsSerializer
 )
 from django.core.cache import cache
-from django.db.models import Count
-from rest_framework import status
 
 def _invalidate_poll_cache(poll_id):
     cache_key = f"poll_results:{poll_id}"
@@ -68,9 +66,36 @@ def cast_vote(user, poll_id, option_id):
             votes_count=models.F("votes_count") + 1
         )
         new_option.refresh_from_db(fields=["votes_count"])
+        
+        log_action(
+            user=user,
+            action="Voted on poll",
+            target_type="Poll",
+            target_id=poll_id
+        )
 
         _invalidate_poll_cache(poll_id)
         return vote, new_option.votes_count
+
+from .models import AuditLog
+
+def log_action(user, action, target_type, target_id):
+    """
+    Logs a user action for auditing purposes.
+
+    Args:
+        user: The user performing the action
+        action: A string describing the action, e.g., "Created poll"
+        target_type: The type of object affected, e.g., "Poll", "Option", "Vote"
+        target_id: UUID of the object affected
+    """
+    AuditLog.objects.create(
+        user=user,
+        action=action,
+        target_type=target_type,
+        target_id=target_id
+    )
+
 
 class PollListCreateView(generics.ListCreateAPIView):
     queryset = Poll.objects.all().select_related('category', 'created_by')
@@ -81,7 +106,13 @@ class PollListCreateView(generics.ListCreateAPIView):
             return PollCreateSerializer
         return PollSerializer
     def perform_create(self, serializer):
-        serializer.save(created_by=self.request.user)
+        poll = serializer.save(created_by=self.request.user)
+        log_action(
+                user=self.request.user,
+                action="Created poll",
+                target_type="Poll",
+                target_id=poll.id
+            )
 
 
 class PollDetailView(generics.RetrieveUpdateDestroyAPIView):
@@ -90,7 +121,13 @@ class PollDetailView(generics.RetrieveUpdateDestroyAPIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def perform_update(self, serializer):
-        serializer.save()
+        poll = serializer.save()
+        log_action(
+            user=self.request.user,
+            action="Updated poll",
+            target_type="Poll",
+            target_id=poll.id
+        )
 
 
 # ---- OPTIONS ----
@@ -102,7 +139,13 @@ class OptionCreateView(generics.CreateAPIView):
     def perform_create(self, serializer):
         poll_id = self.kwargs['poll_id']
         poll = get_object_or_404(Poll, id=poll_id)
-        serializer.save(poll=poll)
+        option = serializer.save(poll=poll)
+        log_action(
+            user=self.request.user,
+            action="Created option",
+            target_type="Option",
+            target_id=option.id
+        )
 
 
 class OptionUpdateDeleteView(generics.RetrieveUpdateDestroyAPIView):

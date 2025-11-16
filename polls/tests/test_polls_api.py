@@ -4,7 +4,6 @@ from django.urls import reverse
 from accounts.models import User
 from polls.models import Category, Poll, Option
 
-
 class PollsApiTest(APITestCase):
 
     def setUp(self):
