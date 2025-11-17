@@ -31,15 +31,16 @@ class PollSerializer(serializers.ModelSerializer):
 
 class PollCreateSerializer(serializers.ModelSerializer):
     options = OptionSerializer(many=True)
+    permission_classes = [permissions.IsAuthenticated]
 
     class Meta:
         model = Poll
         fields = [
             'id', 'question', 'description', 'category', 
-            'created_by', 'is_public', 'allow_multiple',
+            'is_public', 'allow_multiple',
             'expires_at', 'options'
         ]
-        read_only_fields = ['id', 'created_by']
+        read_only_fields = ['id']
 
     def create(self, validated_data):
         options_data = validated_data.pop('options')

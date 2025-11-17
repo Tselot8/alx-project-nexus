@@ -122,12 +122,23 @@ class PollDetailView(generics.RetrieveUpdateDestroyAPIView):
 
     def perform_update(self, serializer):
         poll = serializer.save()
+        _invalidate_poll_cache(poll.id)
         log_action(
             user=self.request.user,
             action="Updated poll",
             target_type="Poll",
             target_id=poll.id
         )
+    def perform_destroy(self, instance):
+        _invalidate_poll_cache(instance.id)  # ADD THIS
+        log_action(
+            user=self.request.user,
+            action="Deleted poll",
+            target_type="Poll",
+            target_id=instance.id
+        )
+        return super().perform_destroy(instance)
+
 
 
 # ---- OPTIONS ----
