@@ -14,6 +14,7 @@ from .serializers import (
     PollResultsSerializer
 )
 from django.core.cache import cache
+from django.db.models import Prefetch
 
 def _invalidate_poll_cache(poll_id):
     cache_key = f"poll_results:{poll_id}"
@@ -32,8 +33,8 @@ def cast_vote(user, poll_id, option_id):
             poll_id=poll_id
         )
 
-        existing_vote = Vote.objects.select_for_update().filter(
-            user=user, poll_id=poll_id
+        existing_vote = Vote.objects.select_for_update(
+        ).select_related('option').filter(user=user, poll_id=poll_id
         ).first()
 
         if existing_vote:
@@ -98,7 +99,7 @@ def log_action(user, action, target_type, target_id):
 
 
 class PollListCreateView(generics.ListCreateAPIView):
-    queryset = Poll.objects.all().select_related('category', 'created_by')
+    queryset = Poll.objects.all().select_related('category', 'created_by').prefetch_related('options')
     permission_classes = [permissions.IsAuthenticated]
 
     def get_serializer_class(self):
@@ -116,7 +117,9 @@ class PollListCreateView(generics.ListCreateAPIView):
 
 
 class PollDetailView(generics.RetrieveUpdateDestroyAPIView):
-    queryset = Poll.objects.all().select_related('category', 'created_by')
+    queryset = Poll.objects.all().select_related('category', 'created_by').prefetch_related(
+        Prefetch('options', queryset=Option.objects.annotate(total_votes=Count('votes')))
+    )
     serializer_class = PollDetailSerializer
     permission_classes = [permissions.IsAuthenticated]
 
@@ -168,14 +171,16 @@ class PollResultsView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def _get_results_queryset(self, poll_id):
-        # Annotate the options with total_votes (Count on related votes)
         options_qs = Option.objects.filter(poll_id=poll_id).annotate(
             total_votes=Count('votes')
         ).only('id', 'option_text', 'votes_count')
 
-        # Load poll with minimal fields
-        poll_qs = Poll.objects.filter(id=poll_id).only('id', 'question', 'description', 'allow_multiple', 'is_public', 'expires_at', 'created_at', 'updated_at')
-        return poll_qs.first(), options_qs
+        poll = Poll.objects.filter(id=poll_id).select_related('category', 'created_by').prefetch_related(
+            Prefetch('options', queryset=options_qs)
+        ).only('id','question','description','allow_multiple','is_public','expires_at','created_at','updated_at').first()
+
+        return poll, list(poll.options.all()) if poll else (None, options_qs)
+
 
     def get(self, request, poll_id):
         # Try cache first (see caching section below)

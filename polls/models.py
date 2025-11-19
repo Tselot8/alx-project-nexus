@@ -32,6 +32,8 @@ class Poll(models.Model):
         indexes = [
             models.Index(fields=['created_by'], name='idx_polls_created_by'),
             models.Index(fields=['category'], name='idx_polls_category_id'),
+            models.Index(fields=['expires_at'], name='idx_polls_expires_at'),
+            models.Index(fields=['is_public'], name='idx_polls_is_public'),
         ]
 
     def __str__(self):
@@ -62,6 +64,7 @@ class Vote(models.Model):
         indexes = [
             models.Index(fields=['poll'], name='idx_votes_poll_id'),
             models.Index(fields=['user'], name='idx_votes_user_id'),
+            models.Index(fields=['poll', 'option'], name='idx_votes_poll_option'),
         ]
         constraints = [
             models.UniqueConstraint(
