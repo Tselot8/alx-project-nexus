@@ -194,6 +194,7 @@ class OptionUpdateDeleteView(generics.RetrieveUpdateDestroyAPIView):
     serializer_class = OptionSerializer
     permission_classes = [permissions.IsAuthenticated]
 
+CACHE_TTL = 15
 class PollResultsView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
@@ -238,5 +239,5 @@ class PollResultsView(APIView):
         }
 
         # Set cache
-        cache.set(cache_key, payload, timeout=15)  # short TTL for near-real-time
+        cache.set(cache_key, payload, CACHE_TTL=15)  # short TTL for near-real-time
         return Response(payload)
