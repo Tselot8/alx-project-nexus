@@ -114,8 +114,8 @@ def vote_view(request, poll_id, option_id):
 
         return Response({
             "message": "Vote successful",
-            "poll_id": poll_id,
-            "option_id": option_id,
+            "poll_id": str(poll_id),
+            "option_id": str(option_id),
             "votes_count": votes_count
         }, status=200)
 
@@ -123,6 +123,9 @@ def vote_view(request, poll_id, option_id):
         return Response({"error": str(e)}, status=400)
 
     except Exception as e:
+        # Log the actual exception so you can debug
+        import logging
+        logging.exception("Unexpected error in vote_view")
         return Response({"error": "Unexpected error"}, status=500)
 
 class PollListCreateView(generics.ListCreateAPIView):
@@ -205,9 +208,13 @@ class PollResultsView(APIView):
 
         poll = Poll.objects.filter(id=poll_id).select_related('category', 'created_by').prefetch_related(
             Prefetch('options', queryset=options_qs)
-        ).only('id','question','description','allow_multiple','is_public','expires_at','created_at','updated_at').first()
+        ).first()
 
-        return poll, list(poll.options.all()) if poll else (None, options_qs)
+        if poll:
+            return poll, list(poll.options.all())
+        else:
+            return None, options_qs
+
 
 
     def get(self, request, poll_id):
@@ -239,5 +246,5 @@ class PollResultsView(APIView):
         }
 
         # Set cache
-        cache.set(cache_key, payload, CACHE_TTL=15)  # short TTL for near-real-time
+        cache.set(cache_key, payload, timeout=15)  # short TTL for near-real-time
         return Response(payload)

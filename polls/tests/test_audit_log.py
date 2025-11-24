@@ -2,6 +2,7 @@ from django.test import TestCase
 from accounts.models import User
 from polls.models import Poll, Category, AuditLog
 from rest_framework.test import APIClient
+from django.test import TestCase
 
 class AuditLogTest(TestCase):
     def test_poll_creation_logs_action(self):

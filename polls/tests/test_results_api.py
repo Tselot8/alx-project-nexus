@@ -1,86 +1,93 @@
-# polls/tests/test_results_api.py
 import pytest
 from django.urls import reverse
 from rest_framework.test import APIClient
 from accounts.models import User
 from polls.models import Category, Poll, Option, Vote
 from polls.views import cast_vote
+from django.test import TestCase
 
 pytestmark = pytest.mark.django_db
 
-def make_client():
-    return APIClient()
 
-def create_user(email="u@test.com"):
-    return User.objects.create_user(email=email, username=email.split("@")[0], password="pass1234")
+class TestResultsApi(TestCase):
+    def make_client(self):
+        return APIClient()
 
-def create_poll_with_options(user, option_texts=("A","B","C")):
-    cat = Category.objects.create(name="test-cat")
-    poll = Poll.objects.create(question="Q?", created_by=user, category=cat)
-    opts = [Option.objects.create(poll=poll, option_text=txt) for txt in option_texts]
-    return poll, opts
+    def create_user(self, email="u@test.com"):
+        return User.objects.create_user(
+            email=email,
+            username=email.split("@")[0],
+            password="pass1234"
+        )
 
-def test_results_empty_poll():
-    user = create_user("a@test.com")
-    poll, opts = create_poll_with_options(user, ("yes","no"))
-    client = make_client()
-    client.force_authenticate(user)
-    url = reverse('poll-results', args=[poll.id])
-    resp = client.get(url)
-    assert resp.status_code == 200
-    data = resp.json()
-    assert data["poll_id"] == str(poll.id)
-    assert len(data["options"]) == 2
-    for o in data["options"]:
-        assert o["total_votes"] == 0
+    def create_poll_with_options(self, user, option_texts=("A", "B", "C")):
+        cat = Category.objects.create(name="test-cat")
+        poll = Poll.objects.create(question="Q?", created_by=user, category=cat)
+        opts = [Option.objects.create(poll=poll, option_text=txt) for txt in option_texts]
+        return poll, opts
 
-def test_results_reflects_votes_and_vote_change():
-    user = create_user("b@test.com")
-    other = create_user("c@test.com")
-    poll, opts = create_poll_with_options(user, ("yes","no"))
-    # user votes yes
-    cast_vote(user, poll.id, opts[0].id)
-    # other votes no
-    cast_vote(other, poll.id, opts[1].id)
+    def test_results_empty_poll(self):
+        user = self.create_user("a@test.com")
+        poll, opts = self.create_poll_with_options(user, ("yes", "no"))
+        client = self.make_client()
+        client.force_authenticate(user)
+        url = reverse('poll-results', args=[poll.id])
+        resp = client.get(url)
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["poll_id"] == str(poll.id)
+        assert len(data["options"]) == 2
+        for o in data["options"]:
+            assert o["total_votes"] == 0
 
-    client = make_client()
-    client.force_authenticate(user)
-    url = reverse('poll-results', args=[poll.id])
-    resp = client.get(url)
-    assert resp.status_code == 200
-    data = resp.json()
+    def test_results_reflects_votes_and_vote_change(self):
+        user = self.create_user("b@test.com")
+        other = self.create_user("c@test.com")
+        poll, opts = self.create_poll_with_options(user, ("yes", "no"))
 
-    # two total votes
-    total = sum(item["total_votes"] for item in data["options"])
-    assert total == 2
+        # user votes yes
+        cast_vote(user, poll.id, opts[0].id)
+        # other votes no
+        cast_vote(other, poll.id, opts[1].id)
 
-    # user changes vote to 'no'
-    cast_vote(user, poll.id, opts[1].id)
+        client = self.make_client()
+        client.force_authenticate(user)
+        url = reverse('poll-results', args=[poll.id])
+        resp = client.get(url)
+        assert resp.status_code == 200
+        data = resp.json()
 
-    resp2 = client.get(url)
-    data2 = resp2.json()
-    total2 = sum(item["total_votes"] for item in data2["options"])
-    assert total2 == 2  # stays 2
-    # now yes should be 0 and no should be 2
-    mapping = {o["option_text"]: o["total_votes"] for o in data2["options"]}
-    assert mapping["yes"] == 0
-    assert mapping["no"] == 2
+        # two total votes
+        total = sum(item["total_votes"] for item in data["options"])
+        assert total == 2
 
-def test_results_cache_invalidation(monkeypatch):
-    user = create_user("cache@test.com")
-    poll, opts = create_poll_with_options(user, ("one","two"))
-    client = make_client()
-    client.force_authenticate(user)
-    url = reverse('poll-results', args=[poll.id])
+        # user changes vote to 'no'
+        cast_vote(user, poll.id, opts[1].id)
 
-    # warm cache
-    resp1 = client.get(url)
-    assert resp1.status_code == 200
+        resp2 = client.get(url)
+        data2 = resp2.json()
+        total2 = sum(item["total_votes"] for item in data2["options"])
+        assert total2 == 2  # stays 2
 
-    # cast a vote (this should invalidate cache)
-    cast_vote(user, poll.id, opts[0].id)
+        mapping = {o["option_text"]: o["total_votes"] for o in data2["options"]}
+        assert mapping["yes"] == 0
+        assert mapping["no"] == 2
 
-    # After vote, results should reflect change (not stale)
-    resp2 = client.get(url)
-    data = resp2.json()
-    assert sum(o["total_votes"] for o in data["options"]) == 1
+    def test_results_cache_invalidation(self):
+        user = self.create_user("cache@test.com")
+        poll, opts = self.create_poll_with_options(user, ("one", "two"))
+        client = self.make_client()
+        client.force_authenticate(user)
+        url = reverse('poll-results', args=[poll.id])
+
+        # warm cache
+        resp1 = client.get(url)
+        self.assertEqual(resp1.status_code, 200)
+
+        # cast a vote (this should invalidate cache)
+        cast_vote(user, poll.id, opts[0].id)
+
+        # After vote, results should reflect change (not stale)
+        resp2 = client.get(url)
+        data = resp2.json()
+        self.assertEqual(sum(o["total_votes"] for o in data["options"]), 1)

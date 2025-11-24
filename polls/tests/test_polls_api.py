@@ -3,6 +3,7 @@ from rest_framework.test import APITestCase
 from django.urls import reverse
 from accounts.models import User
 from polls.models import Category, Poll, Option
+from django.test import TestCase
 
 class PollsApiTest(APITestCase):
 
