@@ -4,7 +4,8 @@ from .views import (
     PollDetailView,
     OptionCreateView,
     OptionUpdateDeleteView,
-    PollResultsView
+    PollResultsView,
+    vote_view,
 )
 
 urlpatterns = [
@@ -17,4 +18,6 @@ urlpatterns = [
 
     # Results
     path('<uuid:poll_id>/results/', PollResultsView.as_view(), name='poll-results'),
+    path('<uuid:poll_id>/vote/<uuid:option_id>/', vote_view, name='cast-vote'),
+
 ]

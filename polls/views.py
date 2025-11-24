@@ -1,5 +1,6 @@
 from django.db import transaction, models
 from rest_framework import generics, permissions, status
+from rest_framework.permissions import IsAuthenticated
 from django.utils import timezone
 from django.shortcuts import get_object_or_404
 from .models import Poll, Option, Vote
@@ -15,6 +16,7 @@ from .serializers import (
 )
 from django.core.cache import cache
 from django.db.models import Prefetch
+from rest_framework.decorators import api_view, permission_classes
 
 def _invalidate_poll_cache(poll_id):
     cache_key = f"poll_results:{poll_id}"
@@ -97,6 +99,28 @@ def log_action(user, action, target_type, target_id):
         target_id=target_id
     )
 
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def vote_view(request, poll_id, option_id):
+    try:
+        vote, votes_count = cast_vote(
+            user=request.user,
+            poll_id=poll_id,
+            option_id=option_id
+        )
+
+        return Response({
+            "message": "Vote successful",
+            "poll_id": poll_id,
+            "option_id": option_id,
+            "votes_count": votes_count
+        }, status=200)
+
+    except ValueError as e:
+        return Response({"error": str(e)}, status=400)
+
+    except Exception as e:
+        return Response({"error": "Unexpected error"}, status=500)
 
 class PollListCreateView(generics.ListCreateAPIView):
     queryset = Poll.objects.all().select_related('category', 'created_by').prefetch_related('options')
