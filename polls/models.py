@@ -68,7 +68,7 @@ class Vote(models.Model):
         ]
         constraints = [
             models.UniqueConstraint(
-                fields=['user', 'poll'],
+                fields=['user', 'option'],
                 name='unique_user_poll_vote'
             )
         ]

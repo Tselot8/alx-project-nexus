@@ -4,6 +4,7 @@ from rest_framework.permissions import IsAuthenticated
 from django.utils import timezone
 from django.shortcuts import get_object_or_404
 from .models import Poll, Option, Vote
+from .permissions import IsPollOwner, IsPollOwnerForOption
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from django.db.models import Count, F
@@ -23,62 +24,64 @@ def _invalidate_poll_cache(poll_id):
     cache.delete(cache_key)
 
 def cast_vote(user, poll_id, option_id):
+    """
+    Cast a vote for a poll option.
+    Supports single-choice and multiple-choice polls.
+    """
     with transaction.atomic():
         poll = get_object_or_404(Poll.objects.select_for_update(), id=poll_id)
+        option = get_object_or_404(Option.objects.select_for_update(), id=option_id, poll_id=poll_id)
 
+        # Check poll expiration
         if poll.expires_at and poll.expires_at < timezone.now():
             raise ValueError("Poll expired")
 
-        new_option = get_object_or_404(
-            Option.objects.select_for_update(),
-            id=option_id,
-            poll_id=poll_id
-        )
+        if poll.allow_multiple:
+            # Multiple-choice: user can vote for multiple options
+            vote, created = Vote.objects.get_or_create(user=user, option=option, poll=poll)
+            if created:
+                # Increment option's votes_count
+                Option.objects.filter(id=option.id).update(votes_count=models.F("votes_count") + 1)
+                option.refresh_from_db(fields=["votes_count"])
+                
+                # Log the action
+                log_action(user=user, action="Voted on poll (multi-choice)", target_type="Poll", target_id=poll_id)
+                _invalidate_poll_cache(poll_id)
+            return vote, option.votes_count
+        else:
+            # Single-choice: only one vote per user
+            existing_vote = Vote.objects.select_for_update().select_related('option').filter(user=user, poll_id=poll_id).first()
 
-        existing_vote = Vote.objects.select_for_update(
-        ).select_related('option').filter(user=user, poll_id=poll_id
-        ).first()
+            if existing_vote:
+                old_option = existing_vote.option
 
-        if existing_vote:
-            old_option = existing_vote.option
+                if old_option.id == option.id:
+                    return existing_vote, old_option.votes_count  # No change
 
-            if old_option.id == new_option.id:
-                return existing_vote, old_option.votes_count  # no change
+                # Decrement old option
+                Option.objects.filter(id=old_option.id).update(votes_count=models.F("votes_count") - 1)
 
-            # decrement old option
-            Option.objects.filter(id=old_option.id).update(
-                votes_count=models.F("votes_count") - 1
-            )
+                # Update vote record
+                existing_vote.option = option
+                existing_vote.save()
 
-            # update vote record
-            existing_vote.option = new_option
-            existing_vote.save()
+                # Increment new option
+                Option.objects.filter(id=option.id).update(votes_count=models.F("votes_count") + 1)
+                option.refresh_from_db(fields=["votes_count"])
 
-            # increment new option
-            Option.objects.filter(id=new_option.id).update(
-                votes_count=models.F("votes_count") + 1
-            )
-            new_option.refresh_from_db(fields=["votes_count"])
+                # Logging and cache
+                log_action(user=user, action="Changed vote on poll", target_type="Poll", target_id=poll_id)
+                _invalidate_poll_cache(poll_id)
+                return existing_vote, option.votes_count
 
+            # First-time vote
+            vote = Vote.objects.create(user=user, poll=poll, option=option)
+            Option.objects.filter(id=option.id).update(votes_count=models.F("votes_count") + 1)
+            option.refresh_from_db(fields=["votes_count"])
+
+            log_action(user=user, action="Voted on poll", target_type="Poll", target_id=poll_id)
             _invalidate_poll_cache(poll_id)
-            return existing_vote, new_option.votes_count
-
-        # First-time vote
-        vote = Vote.objects.create(user=user, poll=poll, option=new_option)
-        Option.objects.filter(id=new_option.id).update(
-            votes_count=models.F("votes_count") + 1
-        )
-        new_option.refresh_from_db(fields=["votes_count"])
-        
-        log_action(
-            user=user,
-            action="Voted on poll",
-            target_type="Poll",
-            target_id=poll_id
-        )
-
-        _invalidate_poll_cache(poll_id)
-        return vote, new_option.votes_count
+            return vote, option.votes_count
 
 from .models import AuditLog
 
@@ -145,7 +148,7 @@ class PollDetailView(generics.RetrieveUpdateDestroyAPIView):
         Prefetch('options', queryset=Option.objects.annotate(total_votes=Count('votes')))
     )
     serializer_class = PollDetailSerializer
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [permissions.IsAuthenticated, IsPollOwner]
 
     def perform_update(self, serializer):
         poll = serializer.save()
@@ -172,7 +175,7 @@ class PollDetailView(generics.RetrieveUpdateDestroyAPIView):
 
 class OptionCreateView(generics.CreateAPIView):
     serializer_class = OptionSerializer
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [permissions.IsAuthenticated, IsPollOwnerForOption]
 
     def perform_create(self, serializer):
         poll_id = self.kwargs['poll_id']
