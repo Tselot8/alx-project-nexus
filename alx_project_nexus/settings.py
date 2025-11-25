@@ -29,8 +29,10 @@ SECRET_KEY = os.getenv('DJANGO_SECRET_KEY')
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = os.getenv('DJANGO_DEBUG', 'False') == 'True'
-
-ALLOWED_HOSTS = ["*"]
+if os.getenv("RENDER") == "true":
+    DEBUG = True
+    
+ALLOWED_HOSTS = ["alx-project-nexus-icng.onrender.com"]
 
 
 # Application definition
