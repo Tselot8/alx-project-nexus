@@ -149,13 +149,21 @@ REST_FRAMEWORK = {
 
 CORS_ALLOW_ALL_ORIGINS = True   # restrict in production
 
-CACHES = {
+"""CACHES = {
     "default": {
         "BACKEND": "django_redis.cache.RedisCache",
         "LOCATION": "redis://127.0.0.1:6379/1",
         "OPTIONS": {
             "CLIENT_CLASS": "django_redis.client.DefaultClient",
         }
+    }
+}"""
+
+# Use in-memory cache 
+CACHES = {
+    "default": {
+        "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
+        "LOCATION": "unique-snowflake",
     }
 }
 

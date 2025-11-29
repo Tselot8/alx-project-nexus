@@ -18,10 +18,14 @@ from .serializers import (
 from django.core.cache import cache
 from django.db.models import Prefetch
 from rest_framework.decorators import api_view, permission_classes
+from django.core.cache import cache
 
 def _invalidate_poll_cache(poll_id):
-    cache_key = f"poll_results:{poll_id}"
-    cache.delete(cache_key)
+    cache_key = f"poll_{poll_id}"
+    try:
+        cache.delete(cache_key)
+    except Exception:
+        pass  # In-memory cache is unlikely to fail, but safe to ignore
 
 def cast_vote(user, poll_id, option_id):
     """
