@@ -27,6 +27,7 @@ jobs:
           --health-timeout 5s
           --health-retries 5
     env:
+      SECRET_KEY: ${{ secrets.DJANGO_SECRET_KEY }}
       POSTGRES_DB: alx_project_nexus_db
       POSTGRES_USER: nexus_user
       POSTGRES_PASSWORD: alx_nexus@123!
