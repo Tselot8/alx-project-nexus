@@ -48,13 +48,32 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
+      - name: Verify Secret Key
+        run: echo "DJANGO_SECRET_KEY loaded: ${DJANGO_SECRET_KEY:0:4}****"
+
       - name: Run Migrations
         run: |
           python manage.py migrate --noinput
+        env:
+          DJANGO_SECRET_KEY: ${{ secrets.DJANGO_SECRET_KEY }}
+          POSTGRES_DB: alx_project_nexus_db
+          POSTGRES_USER: nexus_user
+          POSTGRES_PASSWORD: alx_nexus@123!
+          POSTGRES_HOST: localhost
+          POSTGRES_PORT: 5432
+          TESTING: True
 
       - name: Run Tests
         run: |
           python manage.py test
+        env:
+          DJANGO_SECRET_KEY: ${{ secrets.DJANGO_SECRET_KEY }}
+          POSTGRES_DB: alx_project_nexus_db
+          POSTGRES_USER: nexus_user
+          POSTGRES_PASSWORD: alx_nexus@123!
+          POSTGRES_HOST: localhost
+          POSTGRES_PORT: 5432
+          TESTING: True
 
       - name: Lint Code
         run: |
@@ -67,7 +86,6 @@ jobs:
     needs: test
     if: github.ref == 'refs/heads/main'
     env:
-      # Render production DB credentials (stored securely as GitHub Secrets)
       DJANGO_SECRET_KEY: ${{ secrets.DJANGO_SECRET_KEY }}
       DJANGO_DEBUG: False
       POSTGRES_DB: ${{ secrets.POSTGRES_DB }}
@@ -92,6 +110,13 @@ jobs:
       - name: Run Migrations
         run: |
           python manage.py migrate --noinput
+        env:
+          DJANGO_SECRET_KEY: ${{ secrets.DJANGO_SECRET_KEY }}
+          POSTGRES_DB: ${{ secrets.POSTGRES_DB }}
+          POSTGRES_USER: ${{ secrets.POSTGRES_USER }}
+          POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
+          POSTGRES_HOST: ${{ secrets.POSTGRES_HOST }}
+          POSTGRES_PORT: 5432
 
       - name: Deploy to Render
         env:
