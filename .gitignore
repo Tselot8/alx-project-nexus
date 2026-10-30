@@ -11,3 +11,16 @@ db.sqlite3
 dist/
 .idea/
 .vscode/
+
+# Local environments and Python test caches
+venv/
+.env.*
+!.env.example
+.pytest_cache/
+
+# Frontend dependencies, test artifacts, and TypeScript cache
+/frontend/node_modules/
+/frontend/coverage/
+/frontend/playwright-report/
+/frontend/test-results/
+*.tsbuildinfo
