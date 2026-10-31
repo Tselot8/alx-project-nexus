@@ -42,11 +42,13 @@ class SecurityFixtures:
         self.public = Poll.objects.create(
             question="Public question?",
             created_by=self.owner,
+            configuration_locked=False,  # Fresh, verified unvoted fixture.
         )
         self.private = Poll.objects.create(
             question="Private question?",
             created_by=self.owner,
             is_public=False,
+            configuration_locked=False,  # Fresh, verified unvoted fixture.
         )
         self.options = {
             poll.pk: [
@@ -175,7 +177,18 @@ class PollPermissionTests(SecurityFixtures, TestCase):
                 self.detail(poll), {"question": "Updated?"}, format="json"
             )
             self.assertEqual(response.status_code, 200)
-        self.assertEqual(client.delete(self.detail(poll)).status_code, 204)
+        before = self.snapshot()
+        self.assertEqual(client.delete(self.detail(poll)).status_code, 400)
+        self.assertEqual(self.snapshot(), before)
+        # Ownership still permits deletion of a legitimately created draft.
+        draft = client.post("/api/v2/polls/", {}, format="json")
+        self.assertEqual(draft.status_code, 201)
+        self.assertEqual(
+            client.delete(
+                "/api/v2/polls/" + draft.data["id"] + "/"
+            ).status_code,
+            204,
+        )
 
     def test_missing_resources_are_not_found(self):
         url = reverse("poll-detail", args=[uuid.uuid4()])

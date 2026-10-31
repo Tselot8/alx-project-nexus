@@ -4,6 +4,8 @@ from django.db import transaction
 from django.shortcuts import get_object_or_404
 from rest_framework import serializers, generics, permissions
 from .models import Poll, Option
+from . import management
+from .policy import can_view_results
 
 
 class RejectProtectedFields:
@@ -38,6 +40,33 @@ class OptionSerializer(RejectProtectedFields, serializers.ModelSerializer):
         fields = ['id', 'option_text', 'votes_count']
         read_only_fields = ['id', 'votes_count']
 
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        request = self.context.get("request")
+        user = request.user if request else None
+        policy = self.context.setdefault("_results_policy", {})
+        if instance.poll_id not in policy:
+            policy[instance.poll_id] = can_view_results(user, instance.poll)
+        if not policy[instance.poll_id]:
+            data["votes_count"] = None
+        return data
+
+    def create(self, validated_data):
+        poll = validated_data.pop("poll")
+        _, option = management.mutate_option(
+            self.context["request"].user, poll.pk, validated_data
+        )
+        return option
+
+    def update(self, instance, validated_data):
+        _, option = management.mutate_option(
+            self.context["request"].user,
+            instance.poll_id,
+            validated_data,
+            option_id=instance.pk,
+        )
+        return option
+
 
 class OptionCreateView(generics.CreateAPIView):
     serializer_class = OptionSerializer
@@ -45,8 +74,8 @@ class OptionCreateView(generics.CreateAPIView):
 
     def perform_create(self, serializer):
         poll_id = self.kwargs["poll_id"]
-        get_object_or_404(Poll, id=poll_id)
-        serializer.save(poll_id=poll_id)
+        poll = get_object_or_404(Poll, id=poll_id)
+        serializer.save(poll=poll)
 
 
 class PollSerializer(RejectProtectedFields, serializers.ModelSerializer):
@@ -91,14 +120,8 @@ class PollCreateSerializer(RejectProtectedFields, serializers.ModelSerializer):
 
     @transaction.atomic
     def create(self, validated_data):
-        options_data = validated_data.pop('options')
-        poll = Poll.objects.create(**validated_data)
-
-        # Create linked options
-        for opt in options_data:
-            Option.objects.create(poll=poll, **opt)
-
-        return poll
+        user = validated_data.pop("created_by")
+        return management.create_poll(user, validated_data, legacy=True)
 
 
 class PollDetailSerializer(RejectProtectedFields, serializers.ModelSerializer):
@@ -124,19 +147,10 @@ class PollDetailSerializer(RejectProtectedFields, serializers.ModelSerializer):
 
         read_only_fields = ["id", "created_by", "created_at", "updated_at"]
 
-    def validate(self, attrs):
-        if (
-            self.instance is not None
-            and "allow_multiple" in attrs
-            and attrs["allow_multiple"] != self.instance.allow_multiple
-            and self.instance.votes.exists()
-        ):
-            raise serializers.ValidationError(
-                {
-                    "allow_multiple": "Voting mode cannot change with votes."
-                }
-            )
-        return attrs
+    def update(self, instance, validated_data):
+        return management.update_poll(
+            self.context["request"].user, instance.pk, validated_data
+        )
 
 
 class OptionResultSerializer(serializers.ModelSerializer):

@@ -3,6 +3,8 @@ from rest_framework import generics
 from rest_framework.permissions import IsAuthenticated
 from django.utils import timezone
 from .models import Poll, Option, Vote, AuditLog
+from . import management
+from .policy import can_view_results, public_discovery
 from .permissions import CanAccessPoll
 from .services import (
     PollExpiredError,
@@ -14,7 +16,8 @@ from .services import (
 )
 from rest_framework.views import APIView
 from rest_framework.response import Response
-from django.db.models import Count
+from rest_framework.exceptions import PermissionDenied
+from django.db.models import Count, Q
 from .serializers import (
     PollSerializer,
     PollCreateSerializer,
@@ -49,6 +52,25 @@ def cast_vote(user, poll_id, option_id):
         # Check poll expiration
         if poll.expires_at and poll.expires_at <= timezone.now():
             raise PollExpiredError("Poll expired")
+
+        if poll.status != Poll.Status.PUBLISHED:
+            raise PollExpiredError("Poll is not open for voting")
+        if poll.allow_multiple and (
+            poll.min_selections != 1 or poll.max_selections is not None
+        ):
+            raise PollExpiredError(
+                "This configuration requires complete-ballot voting."
+            )
+        if (
+            not poll.allow_multiple
+            and Vote.objects.filter(user=user, poll=poll).count() > 1
+        ):
+            raise PollExpiredError("Historical selections need review.")
+        if poll.configuration_locked is not True:
+            poll.configuration_locked = True
+            poll.version += 1
+            # Do not disclose first-vote timing as a public content update.
+            poll.save(update_fields=["configuration_locked", "version"])
 
         if poll.allow_multiple:
             # Multiple-choice: user can vote for multiple options
@@ -157,7 +179,11 @@ def vote_view(request, poll_id, option_id):
                 "message": "Vote successful",
                 "poll_id": str(poll_id),
                 "option_id": str(option_id),
-                "votes_count": votes_count,
+                "votes_count": (
+                    votes_count
+                    if can_view_results(request.user, vote.poll)
+                    else None
+                ),
             },
             status=200,
         )
@@ -182,6 +208,14 @@ class LockedPollMutationMixin(PrivatePollResponseMixin):
     """Only mutation handlers request locks, never HTML/OPTIONS rendering."""
 
     @transaction.atomic
+    def retrieve(self, request, *args, **kwargs):
+        self._lock_read = True
+        try:
+            return super().retrieve(request, *args, **kwargs)
+        finally:
+            self._lock_read = False
+
+    @transaction.atomic
     def update(self, request, *args, **kwargs):
         self._lock_mutation = True
         try:
@@ -203,7 +237,7 @@ class PollListCreateView(PrivatePollResponseMixin, generics.ListCreateAPIView):
 
     def get_queryset(self):
         return (
-            Poll.objects.filter(is_public=True)
+            public_discovery()
             .select_related("category", "created_by")
             .prefetch_related("options")
             .order_by("-created_at", "id")
@@ -218,12 +252,6 @@ class PollListCreateView(PrivatePollResponseMixin, generics.ListCreateAPIView):
     def perform_create(self, serializer):
         poll = serializer.save(created_by=self.request.user)
         self.accessed_poll = poll
-        log_action(
-            user=self.request.user,
-            action="Created poll",
-            target_type="Poll",
-            target_id=poll.id,
-        )
 
 
 class PollDetailView(
@@ -246,12 +274,14 @@ class PollDetailView(
         return visible_polls(self.request.user, super().get_queryset())
 
     def get_object(self):
-        if getattr(self, "_lock_mutation", False):
+        if getattr(self, "_lock_mutation", False) or getattr(
+            self, "_lock_read", False
+        ):
             poll = get_poll(
                 self.request.user,
                 self.kwargs["pk"],
                 for_update=True,
-                write=True,
+                write=getattr(self, "_lock_mutation", False),
             )
             self.check_object_permissions(self.request, poll)
         else:
@@ -262,22 +292,10 @@ class PollDetailView(
     def perform_update(self, serializer):
         poll = serializer.save()
         _invalidate_poll_cache(poll.id)
-        log_action(
-            user=self.request.user,
-            action="Updated poll",
-            target_type="Poll",
-            target_id=poll.id,
-        )
 
     def perform_destroy(self, instance):
-        _invalidate_poll_cache(instance.id)
-        log_action(
-            user=self.request.user,
-            action="Deleted poll",
-            target_type="Poll",
-            target_id=instance.id,
-        )
-        return super().perform_destroy(instance)
+        management.delete_poll(self.request.user, instance.pk)
+        _invalidate_poll_cache(instance.pk)
 
 
 class OptionCreateView(PrivatePollResponseMixin, generics.CreateAPIView):
@@ -295,13 +313,7 @@ class OptionCreateView(PrivatePollResponseMixin, generics.CreateAPIView):
         return super().create(request, *args, **kwargs)
 
     def perform_create(self, serializer):
-        option = serializer.save(poll=self.accessed_poll)
-        log_action(
-            user=self.request.user,
-            action="Created option",
-            target_type="Option",
-            target_id=option.id,
-        )
+        serializer.save(poll=self.accessed_poll)
 
 
 class OptionUpdateDeleteView(
@@ -319,12 +331,17 @@ class OptionUpdateDeleteView(
         )
 
     def get_object(self):
-        if getattr(self, "_lock_mutation", False):
+        if getattr(self, "_lock_mutation", False) or getattr(
+            self, "_lock_read", False
+        ):
             parent_id = get_resource_or_404(
                 Option.objects.only("poll_id"), pk=self.kwargs["pk"]
             ).poll_id
             poll = get_poll(
-                self.request.user, parent_id, for_update=True, write=True
+                self.request.user,
+                parent_id,
+                for_update=True,
+                write=getattr(self, "_lock_mutation", False),
             )
             option = get_resource_or_404(
                 Option.objects.select_for_update(),
@@ -339,16 +356,29 @@ class OptionUpdateDeleteView(
         self.accessed_poll = poll
         return option
 
+    def perform_destroy(self, instance):
+        management.mutate_option(
+            self.request.user,
+            instance.poll_id,
+            option_id=instance.pk,
+            delete=True,
+        )
+
 
 class PollResultsView(PrivatePollResponseMixin, APIView):
     permission_classes = [CanAccessPoll]
 
+    @transaction.atomic
     def get(self, request, poll_id):
-        poll = get_poll(request.user, poll_id)
+        poll = get_poll(request.user, poll_id, for_update=True)
+        if not can_view_results(request.user, poll):
+            raise PermissionDenied("Results are not available to you.")
         self.accessed_poll = poll
         options = (
             Option.objects.filter(poll_id=poll.pk)
-            .annotate(total_votes=Count("votes"))
+            .annotate(
+                total_votes=Count("votes", filter=Q(votes__poll_id=poll.pk))
+            )
             .only("id", "option_text")
         )
         # B1 deliberately bypasses legacy payload caches and stored counters.

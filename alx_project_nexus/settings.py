@@ -296,3 +296,8 @@ def _account_email_settings():
 
 
 globals().update(_account_email_settings())
+
+# Capability headers must never appear in Django exception reports.
+DEFAULT_EXCEPTION_REPORTER_FILTER = (
+    "polls.exception_filter.ShareAwareExceptionReporterFilter"
+)

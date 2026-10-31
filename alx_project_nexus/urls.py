@@ -42,6 +42,7 @@ urlpatterns = [
     path("api/polls/", include("polls.urls")),
     path("api/accounts/", include("accounts.urls")),
     path("api/v2/auth/", include("accounts.v2_urls")),
+    path("api/v2/", include("polls.v2_urls")),
     path(
         'api/token/', TokenObtainPairView.as_view(), name='token_obtain_pair'
     ),

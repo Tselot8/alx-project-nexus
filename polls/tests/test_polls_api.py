@@ -51,6 +51,8 @@ class PollsApiTest(APITestCase):
     def test_update_poll(self):
         poll = Poll.objects.create(
             question="Old question?",
+            status="draft",
+            configuration_locked=False,
             created_by=self.user,
             category=self.category,
         )
@@ -65,7 +67,11 @@ class PollsApiTest(APITestCase):
 
     def test_delete_poll(self):
         poll = Poll.objects.create(
-            question="Delete me?", created_by=self.user, category=self.category
+            question="Delete me?",
+            created_by=self.user,
+            category=self.category,
+            status="draft",
+            configuration_locked=False,
         )
         url = reverse('poll-detail', args=[poll.id])
         response = self.client.delete(url)
@@ -75,6 +81,8 @@ class PollsApiTest(APITestCase):
     def test_add_option_to_poll(self):
         poll = Poll.objects.create(
             question="Favorite drink?",
+            status="draft",
+            configuration_locked=False,
             created_by=self.user,
             category=self.category,
         )

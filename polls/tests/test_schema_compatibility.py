@@ -1,4 +1,4 @@
-"""Legacy API remains on Vote storage; future metadata stays dormant."""
+"""Legacy compatibility under the E lifecycle safeguards."""
 
 from django.contrib import admin
 from django.test import RequestFactory, TestCase
@@ -23,14 +23,14 @@ class SchemaCompatibilityTests(SecurityFixtures, TestCase):
         self.assertFalse(BallotSelection.objects.exists())
         self.assertFalse(PollShareToken.objects.exists())
 
-    def assert_legacy_defaults(self, poll):
+    def assert_legacy_defaults(self, poll, *, version=1, locked=False):
         poll.refresh_from_db()
         self.assertEqual(poll.status, "published")
         self.assertEqual(poll.results_visibility, "immediate")
         self.assertEqual(poll.min_selections, 1)
         self.assertIsNone(poll.max_selections)
-        self.assertEqual(poll.version, 1)
-        self.assertIsNone(poll.configuration_locked)
+        self.assertEqual(poll.version, version)
+        self.assertIs(poll.configuration_locked, locked)
 
     def test_legacy_create_ignores_unexposed_future_metadata(self):
         response = self.client_for(self.owner).post(
@@ -69,7 +69,7 @@ class SchemaCompatibilityTests(SecurityFixtures, TestCase):
                 format="json",
             )
             self.assertEqual(response.status_code, 200)
-            self.assert_legacy_defaults(self.public)
+            self.assert_legacy_defaults(self.public, version=2)
             self.assertFalse(METADATA & set(response.data))
         self.assert_empty_new_tables()
 
@@ -93,10 +93,12 @@ class SchemaCompatibilityTests(SecurityFixtures, TestCase):
         )
         self.assertEqual(result.status_code, 200)
         self.assertEqual(result.data["total_votes"], 1)
-        self.assert_legacy_defaults(self.public)
+        self.assert_legacy_defaults(self.public, version=2, locked=True)
         self.assert_empty_new_tables()
 
-    def test_legacy_deletion_and_private_visibility_are_preserved(self):
+    def test_published_deletion_is_denied_and_private_visibility_preserved(
+        self,
+    ):
         option = self.options[self.public.pk][0]
         response = self.client_for(self.other).post(
             reverse("cast-vote", args=[self.public.pk, option.pk])
@@ -106,9 +108,9 @@ class SchemaCompatibilityTests(SecurityFixtures, TestCase):
             self.client_for(self.owner)
             .delete(self.detail(self.public))
             .status_code,
-            204,
+            400,
         )
-        self.assertFalse(Vote.objects.exists())
+        self.assertTrue(Vote.objects.exists())
         self.assertEqual(
             self.client_for(self.other)
             .get(self.detail(self.private))

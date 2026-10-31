@@ -33,7 +33,7 @@ def require_active_user(user):
 def visible_polls(user, queryset=None):
     if queryset is None:
         queryset = Poll.objects.all()
-    condition = Q(is_public=True)
+    condition = Q(is_public=True) & ~Q(status=Poll.Status.DRAFT)
     if user is not None and user.is_authenticated:
         condition |= Q(created_by_id=user.pk)
     return queryset.filter(condition)
@@ -41,7 +41,7 @@ def visible_polls(user, queryset=None):
 
 def authorize_poll(user, poll, *, write=False):
     owner = is_poll_owner(user, poll)
-    if not poll.is_public and not owner:
+    if (poll.status == Poll.Status.DRAFT or not poll.is_public) and not owner:
         raise Http404("Not found.")
     if write:
         require_active_user(user)
@@ -67,6 +67,6 @@ def get_poll(user, poll_id, *, for_update=False, write=False):
 
 
 def private_response(response, poll):
-    if not poll.is_public:
-        patch_cache_control(response, private=True, no_store=True)
+    # Results policy can personalize even a public response.
+    patch_cache_control(response, private=True, no_store=True)
     return response
