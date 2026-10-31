@@ -1,0 +1,21 @@
+:root {
+  color-scheme: light;
+  --background: #F7F8F6;
+  --surface: #FFFFFF;
+  --text: #142B3B;
+  --muted: #526574;
+  --primary: #2455D6;
+  --primary-hover: #1D44AD;
+  --accent: #0F766E;
+  --border: #D9E1E3;
+  --control-border: #748795;
+  --danger: #A32639;
+  --radius: 1rem;
+  --radius-small: .65rem;
+  --shadow: 0 6px 26px rgb(20 43 59 / 4%);
+  --space: clamp(1rem, 3vw, 2rem);
+  --container: 75rem;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+}
