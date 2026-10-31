@@ -1,6 +1,7 @@
+from django.shortcuts import get_object_or_404
 from rest_framework import serializers, generics, permissions
 from .models import Poll, Option
-from django.db.models import Count
+
 
 class OptionSerializer(serializers.ModelSerializer):
     class Meta:
@@ -15,7 +16,7 @@ class OptionCreateView(generics.CreateAPIView):
 
     def perform_create(self, serializer):
         poll_id = self.kwargs["poll_id"]
-        poll = get_object_or_404(Poll, id=poll_id)
+        get_object_or_404(Poll, id=poll_id)
         serializer.save(poll_id=poll_id)
 
 
@@ -23,8 +24,16 @@ class PollSerializer(serializers.ModelSerializer):
     class Meta:
         model = Poll
         fields = [
-            'id', 'question', 'description', 'category', 'created_by',
-            'is_public', 'allow_multiple', 'expires_at', 'created_at', 'updated_at'
+            'id',
+            'question',
+            'description',
+            'category',
+            'created_by',
+            'is_public',
+            'allow_multiple',
+            'expires_at',
+            'created_at',
+            'updated_at',
         ]
         read_only_fields = ['id', 'created_by', 'created_at', 'updated_at']
 
@@ -36,21 +45,27 @@ class PollCreateSerializer(serializers.ModelSerializer):
     class Meta:
         model = Poll
         fields = [
-            'id', 'question', 'description', 'category', 
-            'is_public', 'allow_multiple',
-            'expires_at', 'options'
+            'id',
+            'question',
+            'description',
+            'category',
+            'is_public',
+            'allow_multiple',
+            'expires_at',
+            'options',
         ]
         read_only_fields = ['id']
 
     def create(self, validated_data):
         options_data = validated_data.pop('options')
         poll = Poll.objects.create(**validated_data)
-        
+
         # Create linked options
         for opt in options_data:
             Option.objects.create(poll=poll, **opt)
-        
+
         return poll
+
 
 class PollDetailSerializer(serializers.ModelSerializer):
     options = OptionSerializer(many=True, read_only=True)
@@ -58,10 +73,19 @@ class PollDetailSerializer(serializers.ModelSerializer):
     class Meta:
         model = Poll
         fields = [
-            'id', 'question', 'description', 'category', 'created_by',
-            'is_public', 'allow_multiple', 'expires_at',
-            'created_at', 'updated_at', 'options'
+            'id',
+            'question',
+            'description',
+            'category',
+            'created_by',
+            'is_public',
+            'allow_multiple',
+            'expires_at',
+            'created_at',
+            'updated_at',
+            'options',
         ]
+
 
 class OptionResultSerializer(serializers.ModelSerializer):
     votes = serializers.IntegerField()
@@ -97,5 +121,5 @@ class PollResultsSerializer(serializers.ModelSerializer):
             "created_at",
             "updated_at",
             "total_votes",
-            "options"
+            "options",
         ]

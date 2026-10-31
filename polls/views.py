@@ -3,29 +3,29 @@ from rest_framework import generics, permissions, status
 from rest_framework.permissions import IsAuthenticated
 from django.utils import timezone
 from django.shortcuts import get_object_or_404
-from .models import Poll, Option, Vote
+from .models import Poll, Option, Vote, AuditLog
 from .permissions import IsPollOwner, IsPollOwnerForOption
 from rest_framework.views import APIView
 from rest_framework.response import Response
-from django.db.models import Count, F
+from django.db.models import Count
 from .serializers import (
     PollSerializer,
     PollCreateSerializer,
     PollDetailSerializer,
     OptionSerializer,
-    PollResultsSerializer
 )
 from django.core.cache import cache
 from django.db.models import Prefetch
 from rest_framework.decorators import api_view, permission_classes
-from django.core.cache import cache
+
 
 def _invalidate_poll_cache(poll_id):
-    cache_key = f"poll_{poll_id}"
+    cache_key = f"poll_results:{poll_id}"
     try:
         cache.delete(cache_key)
     except Exception:
         pass  # In-memory cache is unlikely to fail, but safe to ignore
+
 
 def cast_vote(user, poll_id, option_id):
     """
@@ -34,7 +34,9 @@ def cast_vote(user, poll_id, option_id):
     """
     with transaction.atomic():
         poll = get_object_or_404(Poll.objects.select_for_update(), id=poll_id)
-        option = get_object_or_404(Option.objects.select_for_update(), id=option_id, poll_id=poll_id)
+        option = get_object_or_404(
+            Option.objects.select_for_update(), id=option_id, poll_id=poll_id
+        )
 
         # Check poll expiration
         if poll.expires_at and poll.expires_at < timezone.now():
@@ -42,19 +44,33 @@ def cast_vote(user, poll_id, option_id):
 
         if poll.allow_multiple:
             # Multiple-choice: user can vote for multiple options
-            vote, created = Vote.objects.get_or_create(user=user, option=option, poll=poll)
+            vote, created = Vote.objects.get_or_create(
+                user=user, option=option, poll=poll
+            )
             if created:
                 # Increment option's votes_count
-                Option.objects.filter(id=option.id).update(votes_count=models.F("votes_count") + 1)
+                Option.objects.filter(id=option.id).update(
+                    votes_count=models.F("votes_count") + 1
+                )
                 option.refresh_from_db(fields=["votes_count"])
-                
+
                 # Log the action
-                log_action(user=user, action="Voted on poll (multi-choice)", target_type="Poll", target_id=poll_id)
+                log_action(
+                    user=user,
+                    action="Voted on poll (multi-choice)",
+                    target_type="Poll",
+                    target_id=poll_id,
+                )
                 _invalidate_poll_cache(poll_id)
             return vote, option.votes_count
         else:
             # Single-choice: only one vote per user
-            existing_vote = Vote.objects.select_for_update().select_related('option').filter(user=user, poll_id=poll_id).first()
+            existing_vote = (
+                Vote.objects.select_for_update()
+                .select_related('option')
+                .filter(user=user, poll_id=poll_id)
+                .first()
+            )
 
             if existing_vote:
                 old_option = existing_vote.option
@@ -63,31 +79,46 @@ def cast_vote(user, poll_id, option_id):
                     return existing_vote, old_option.votes_count  # No change
 
                 # Decrement old option
-                Option.objects.filter(id=old_option.id).update(votes_count=models.F("votes_count") - 1)
+                Option.objects.filter(id=old_option.id).update(
+                    votes_count=models.F("votes_count") - 1
+                )
 
                 # Update vote record
                 existing_vote.option = option
                 existing_vote.save()
 
                 # Increment new option
-                Option.objects.filter(id=option.id).update(votes_count=models.F("votes_count") + 1)
+                Option.objects.filter(id=option.id).update(
+                    votes_count=models.F("votes_count") + 1
+                )
                 option.refresh_from_db(fields=["votes_count"])
 
                 # Logging and cache
-                log_action(user=user, action="Changed vote on poll", target_type="Poll", target_id=poll_id)
+                log_action(
+                    user=user,
+                    action="Changed vote on poll",
+                    target_type="Poll",
+                    target_id=poll_id,
+                )
                 _invalidate_poll_cache(poll_id)
                 return existing_vote, option.votes_count
 
             # First-time vote
             vote = Vote.objects.create(user=user, poll=poll, option=option)
-            Option.objects.filter(id=option.id).update(votes_count=models.F("votes_count") + 1)
+            Option.objects.filter(id=option.id).update(
+                votes_count=models.F("votes_count") + 1
+            )
             option.refresh_from_db(fields=["votes_count"])
 
-            log_action(user=user, action="Voted on poll", target_type="Poll", target_id=poll_id)
+            log_action(
+                user=user,
+                action="Voted on poll",
+                target_type="Poll",
+                target_id=poll_id,
+            )
             _invalidate_poll_cache(poll_id)
             return vote, option.votes_count
 
-from .models import AuditLog
 
 def log_action(user, action, target_type, target_id):
     """
@@ -96,63 +127,77 @@ def log_action(user, action, target_type, target_id):
     Args:
         user: The user performing the action
         action: A string describing the action, e.g., "Created poll"
-        target_type: The type of object affected, e.g., "Poll", "Option", "Vote"
+        target_type: The type of object affected,
+            e.g., "Poll", "Option", "Vote"
         target_id: UUID of the object affected
     """
     AuditLog.objects.create(
-        user=user,
-        action=action,
-        target_type=target_type,
-        target_id=target_id
+        user=user, action=action, target_type=target_type, target_id=target_id
     )
+
 
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def vote_view(request, poll_id, option_id):
     try:
         vote, votes_count = cast_vote(
-            user=request.user,
-            poll_id=poll_id,
-            option_id=option_id
+            user=request.user, poll_id=poll_id, option_id=option_id
         )
 
-        return Response({
-            "message": "Vote successful",
-            "poll_id": str(poll_id),
-            "option_id": str(option_id),
-            "votes_count": votes_count
-        }, status=200)
+        return Response(
+            {
+                "message": "Vote successful",
+                "poll_id": str(poll_id),
+                "option_id": str(option_id),
+                "votes_count": votes_count,
+            },
+            status=200,
+        )
 
     except ValueError as e:
         return Response({"error": str(e)}, status=400)
 
-    except Exception as e:
+    except Exception:
         # Log the actual exception so you can debug
         import logging
+
         logging.exception("Unexpected error in vote_view")
         return Response({"error": "Unexpected error"}, status=500)
 
+
 class PollListCreateView(generics.ListCreateAPIView):
-    queryset = Poll.objects.all().select_related('category', 'created_by').prefetch_related('options')
+    queryset = (
+        Poll.objects.all()
+        .select_related('category', 'created_by')
+        .prefetch_related('options')
+    )
     permission_classes = [permissions.IsAuthenticated]
 
     def get_serializer_class(self):
         if self.request.method == "POST":
             return PollCreateSerializer
         return PollSerializer
+
     def perform_create(self, serializer):
         poll = serializer.save(created_by=self.request.user)
         log_action(
-                user=self.request.user,
-                action="Created poll",
-                target_type="Poll",
-                target_id=poll.id
-            )
+            user=self.request.user,
+            action="Created poll",
+            target_type="Poll",
+            target_id=poll.id,
+        )
 
 
 class PollDetailView(generics.RetrieveUpdateDestroyAPIView):
-    queryset = Poll.objects.all().select_related('category', 'created_by').prefetch_related(
-        Prefetch('options', queryset=Option.objects.annotate(total_votes=Count('votes')))
+    queryset = (
+        Poll.objects.all()
+        .select_related('category', 'created_by')
+        .prefetch_related(
+            Prefetch(
+                'options',
+                queryset=Option.objects.annotate(total_votes=Count('votes')),
+            )
+        )
     )
     serializer_class = PollDetailSerializer
     permission_classes = [permissions.IsAuthenticated, IsPollOwner]
@@ -164,21 +209,22 @@ class PollDetailView(generics.RetrieveUpdateDestroyAPIView):
             user=self.request.user,
             action="Updated poll",
             target_type="Poll",
-            target_id=poll.id
+            target_id=poll.id,
         )
+
     def perform_destroy(self, instance):
         _invalidate_poll_cache(instance.id)  # ADD THIS
         log_action(
             user=self.request.user,
             action="Deleted poll",
             target_type="Poll",
-            target_id=instance.id
+            target_id=instance.id,
         )
         return super().perform_destroy(instance)
 
 
-
 # ---- OPTIONS ----
+
 
 class OptionCreateView(generics.CreateAPIView):
     serializer_class = OptionSerializer
@@ -192,7 +238,7 @@ class OptionCreateView(generics.CreateAPIView):
             user=self.request.user,
             action="Created option",
             target_type="Option",
-            target_id=option.id
+            target_id=option.id,
         )
 
 
@@ -201,25 +247,31 @@ class OptionUpdateDeleteView(generics.RetrieveUpdateDestroyAPIView):
     serializer_class = OptionSerializer
     permission_classes = [permissions.IsAuthenticated]
 
+
 CACHE_TTL = 15
+
+
 class PollResultsView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def _get_results_queryset(self, poll_id):
-        options_qs = Option.objects.filter(poll_id=poll_id).annotate(
-            total_votes=Count('votes')
-        ).only('id', 'option_text', 'votes_count')
+        options_qs = (
+            Option.objects.filter(poll_id=poll_id)
+            .annotate(total_votes=Count('votes'))
+            .only('id', 'option_text', 'votes_count')
+        )
 
-        poll = Poll.objects.filter(id=poll_id).select_related('category', 'created_by').prefetch_related(
-            Prefetch('options', queryset=options_qs)
-        ).first()
+        poll = (
+            Poll.objects.filter(id=poll_id)
+            .select_related('category', 'created_by')
+            .prefetch_related(Prefetch('options', queryset=options_qs))
+            .first()
+        )
 
         if poll:
             return poll, list(poll.options.all())
         else:
             return None, options_qs
-
-
 
     def get(self, request, poll_id):
         # Try cache first (see caching section below)
@@ -230,7 +282,9 @@ class PollResultsView(APIView):
 
         poll, options_qs = self._get_results_queryset(poll_id)
         if not poll:
-            return Response({"detail": "Poll not found"}, status=status.HTTP_404_NOT_FOUND)
+            return Response(
+                {"detail": "Poll not found"}, status=status.HTTP_404_NOT_FOUND
+            )
 
         # Build payload
         options_list = [
@@ -238,7 +292,7 @@ class PollResultsView(APIView):
                 "id": str(o.id),
                 "option_text": o.option_text,
                 "votes_count": o.votes_count,
-                "total_votes": o.total_votes
+                "total_votes": o.total_votes,
             }
             for o in options_qs
         ]
@@ -246,9 +300,11 @@ class PollResultsView(APIView):
             "poll_id": str(poll.id),
             "question": poll.question,
             "options": options_list,
-            "total_votes": sum(o["total_votes"] for o in options_list)
+            "total_votes": sum(o["total_votes"] for o in options_list),
         }
 
         # Set cache
-        cache.set(cache_key, payload, timeout=15)  # short TTL for near-real-time
+        cache.set(
+            cache_key, payload, timeout=15
+        )  # short TTL for near-real-time
         return Response(payload)

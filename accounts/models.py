@@ -1,7 +1,12 @@
 import uuid
 from django.db import models
-from django.contrib.auth.models import AbstractBaseUser, PermissionsMixin, BaseUserManager
+from django.contrib.auth.models import (
+    AbstractBaseUser,
+    PermissionsMixin,
+    BaseUserManager,
+)
 from django.utils import timezone
+
 
 class UserManager(BaseUserManager):
     use_in_migrations = True
@@ -18,12 +23,19 @@ class UserManager(BaseUserManager):
     def create_user(self, email, username=None, password=None, **extra_fields):
         extra_fields.setdefault('is_staff', False)
         extra_fields.setdefault('is_superuser', False)
-        return self._create_user(email, username or email, password, **extra_fields)
+        return self._create_user(
+            email, username or email, password, **extra_fields
+        )
 
-    def create_superuser(self, email, username=None, password=None, **extra_fields):
+    def create_superuser(
+        self, email, username=None, password=None, **extra_fields
+    ):
         extra_fields.setdefault('is_staff', True)
         extra_fields.setdefault('is_superuser', True)
-        return self._create_user(email, username or email, password, **extra_fields)
+        return self._create_user(
+            email, username or email, password, **extra_fields
+        )
+
 
 class User(AbstractBaseUser, PermissionsMixin):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
@@ -41,9 +53,15 @@ class User(AbstractBaseUser, PermissionsMixin):
     def __str__(self):
         return self.email
 
+
 class UserProfile(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    user = models.OneToOneField('accounts.User', on_delete=models.CASCADE, related_name='profile', unique=True)
+    user = models.OneToOneField(
+        'accounts.User',
+        on_delete=models.CASCADE,
+        related_name='profile',
+        unique=True,
+    )
     bio = models.TextField(null=True, blank=True)
     profile_picture = models.CharField(max_length=255, null=True, blank=True)
     location = models.CharField(max_length=100, null=True, blank=True)

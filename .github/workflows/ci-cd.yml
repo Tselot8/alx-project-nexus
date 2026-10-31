@@ -1,127 +1,104 @@
-name: Django CI/CD Pipeline
+name: Django CI
 
 on:
   push:
     branches:
       - main
+      - "chore/**"
+      - "feature/**"
+      - "fix/**"
   pull_request:
     branches:
       - main
 
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   test:
-    name: Run Tests
+    name: Isolated PostgreSQL tests
     runs-on: ubuntu-latest
-    services:
-      postgres:
-        image: postgres:15
-        env:
-          POSTGRES_USER: nexus_user
-          POSTGRES_PASSWORD: alx_nexus@123!
-          POSTGRES_DB: alx_project_nexus_db
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-    env:
-      DJANGO_SECRET_KEY: ${{ secrets.DJANGO_SECRET_KEY }}
-      POSTGRES_DB: alx_project_nexus_db
-      POSTGRES_USER: nexus_user
-      POSTGRES_PASSWORD: alx_nexus@123!
-      POSTGRES_HOST: localhost
-      POSTGRES_PORT: 5432
-      TESTING: True
+    timeout-minutes: 15
     steps:
-      - name: Checkout Code
+      - name: Checkout
         uses: actions/checkout@v3
 
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
-          python-version: '3.12'
+          python-version: "3.12"
 
-      - name: Install Dependencies
+      - name: Install pinned dependencies
+        run: python -m pip install -r requirements.txt
+
+      - name: Run tests with disposable credentials
         run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements.txt
+          python - <<'PY'
+          import os
+          import secrets
+          import subprocess
+          import sys
+          import time
 
-      - name: Verify Secret Key
-        run: echo "DJANGO_SECRET_KEY loaded: ${DJANGO_SECRET_KEY:0:4}****"
+          # Credentials stay in process memory, never GitHub step outputs,
+          # GITHUB_ENV, command arguments, logs, or repository secrets.
+          env = {
+              key: value for key, value in os.environ.items()
+              if not key.startswith(("POSTGRES_", "NEXUS_", "DJANGO_"))
+              and key not in {"DATABASE_URL", "TESTING", "RENDER"}
+          }
+          username = "nexus_test_" + secrets.token_hex(6)
+          password = secrets.token_urlsafe(32)
+          env.update({
+              "DJANGO_SETTINGS_MODULE": "alx_project_nexus.settings_test",
+              "NEXUS_TEST_SECRET_KEY": secrets.token_urlsafe(64),
+              "NEXUS_TEST_DB_HOST": "127.0.0.1",
+              "NEXUS_TEST_DB_PORT": "5432",
+              "NEXUS_TEST_DB_NAME": "nexus_test_ci",
+              "NEXUS_TEST_DB_USER": username,
+              "NEXUS_TEST_DB_PASSWORD": password,
+              "POSTGRES_DB": "nexus_test_ci",
+              "POSTGRES_USER": username,
+              "POSTGRES_PASSWORD": password,
+              "PYTHONDONTWRITEBYTECODE": "1",
+          })
+          container = (
+              "nexus-ci-" + os.environ["GITHUB_RUN_ID"]
+              + "-" + os.environ["GITHUB_RUN_ATTEMPT"]
+          )
+          try:
+              subprocess.run([
+                  "docker", "run", "--detach", "--name", container,
+                  "--publish", "127.0.0.1:5432:5432",
+                  "--env", "POSTGRES_DB", "--env", "POSTGRES_USER",
+                  "--env", "POSTGRES_PASSWORD", "postgres:15",
+              ], env=env, check=True, stdout=subprocess.DEVNULL)
+              for attempt in range(60):
+                  ready = subprocess.run([
+                      "docker", "exec", container, "sh", "-c",
+                      'exec pg_isready -U "$POSTGRES_USER" -d "$POSTGRES_DB"',
+                  ], check=False, capture_output=True)
+                  if ready.returncode == 0:
+                      break
+                  time.sleep(1)
+              else:
+                  raise SystemExit("Disposable PostgreSQL did not become ready.")
+              # pytest-django applies migrations only to the disposable test DB.
+              subprocess.run([
+                  sys.executable, "-B", "-m", "pytest",
+                  "-p", "no:cacheprovider",
+              ], env=env, check=True)
+          finally:
+              subprocess.run([
+                  "docker", "rm", "--force", container,
+              ], check=False, stdout=subprocess.DEVNULL,
+                 stderr=subprocess.DEVNULL)
+          PY
 
-      - name: Run Migrations
-        run: |
-          python manage.py migrate --noinput
-        env:
-          DJANGO_SECRET_KEY: ${{ secrets.DJANGO_SECRET_KEY }}
-          POSTGRES_DB: alx_project_nexus_db
-          POSTGRES_USER: nexus_user
-          POSTGRES_PASSWORD: alx_nexus@123!
-          POSTGRES_HOST: localhost
-          POSTGRES_PORT: 5432
-          TESTING: True
-
-      - name: Run Tests
-        run: |
-          python manage.py test
-        env:
-          DJANGO_SECRET_KEY: ${{ secrets.DJANGO_SECRET_KEY }}
-          POSTGRES_DB: alx_project_nexus_db
-          POSTGRES_USER: nexus_user
-          POSTGRES_PASSWORD: alx_nexus@123!
-          POSTGRES_HOST: localhost
-          POSTGRES_PORT: 5432
-          TESTING: True
-
-      - name: Lint Code
-        run: |
-          pip install flake8
-          flake8 .
-
-  deploy:
-    name: Deploy to Render
-    runs-on: ubuntu-latest
-    needs: test
-    if: github.ref == 'refs/heads/main'
-    env:
-      DJANGO_SECRET_KEY: ${{ secrets.DJANGO_SECRET_KEY }}
-      DJANGO_DEBUG: False
-      POSTGRES_DB: ${{ secrets.POSTGRES_DB }}
-      POSTGRES_USER: ${{ secrets.POSTGRES_USER }}
-      POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
-      POSTGRES_HOST: ${{ secrets.POSTGRES_HOST }}
-      POSTGRES_PORT: 5432
-    steps:
-      - name: Checkout Code
-        uses: actions/checkout@v3
-
-      - name: Set up Python
-        uses: actions/setup-python@v4
-        with:
-          python-version: '3.12'
-
-      - name: Install Dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements.txt
-
-      - name: Run Migrations
-        run: |
-          python manage.py migrate --noinput
-        env:
-          DJANGO_SECRET_KEY: ${{ secrets.DJANGO_SECRET_KEY }}
-          POSTGRES_DB: ${{ secrets.POSTGRES_DB }}
-          POSTGRES_USER: ${{ secrets.POSTGRES_USER }}
-          POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
-          POSTGRES_HOST: ${{ secrets.POSTGRES_HOST }}
-          POSTGRES_PORT: 5432
-
-      - name: Deploy to Render
-        env:
-          RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
-        run: |
-          curl -X POST "https://api.render.com/deploy/srv-xxxxxxxxxxxx" \
-               -H "Authorization: Bearer $RENDER_API_KEY" \
-               -H "Accept: application/json"
+      - name: Lint backend paths
+        if: always()
+        run: python -m flake8 --extend-exclude "*/migrations/*" accounts polls alx_project_nexus manage.py

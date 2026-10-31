@@ -2,7 +2,7 @@ import pytest
 from django.urls import reverse
 from rest_framework.test import APIClient
 from accounts.models import User
-from polls.models import Category, Poll, Option, Vote
+from polls.models import Category, Poll, Option
 from polls.views import cast_vote
 from django.test import TestCase
 
@@ -15,15 +15,18 @@ class TestResultsApi(TestCase):
 
     def create_user(self, email="u@test.com"):
         return User.objects.create_user(
-            email=email,
-            username=email.split("@")[0],
-            password="pass1234"
+            email=email, username=email.split("@")[0], password="pass1234"
         )
 
     def create_poll_with_options(self, user, option_texts=("A", "B", "C")):
         cat = Category.objects.create(name="test-cat")
-        poll = Poll.objects.create(question="Q?", created_by=user, category=cat)
-        opts = [Option.objects.create(poll=poll, option_text=txt) for txt in option_texts]
+        poll = Poll.objects.create(
+            question="Q?", created_by=user, category=cat
+        )
+        opts = [
+            Option.objects.create(poll=poll, option_text=txt)
+            for txt in option_texts
+        ]
         return poll, opts
 
     def test_results_empty_poll(self):
@@ -69,7 +72,9 @@ class TestResultsApi(TestCase):
         total2 = sum(item["total_votes"] for item in data2["options"])
         assert total2 == 2  # stays 2
 
-        mapping = {o["option_text"]: o["total_votes"] for o in data2["options"]}
+        mapping = {
+            o["option_text"]: o["total_votes"] for o in data2["options"]
+        }
         assert mapping["yes"] == 0
         assert mapping["no"] == 2
 

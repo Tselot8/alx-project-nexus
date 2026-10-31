@@ -1,7 +1,8 @@
 import uuid
-from django.db import models, transaction
+from django.db import models
 from django.utils import timezone
 from django.conf import settings
+
 
 # Category
 class Category(models.Model):
@@ -15,13 +16,24 @@ class Category(models.Model):
     def __str__(self):
         return self.name
 
+
 # Poll
 class Poll(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     question = models.TextField(null=False)
     description = models.TextField(null=True, blank=True)
-    category = models.ForeignKey(Category, null=True, blank=True, on_delete=models.SET_NULL, related_name='polls')
-    created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='polls')
+    category = models.ForeignKey(
+        Category,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name='polls',
+    )
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='polls',
+    )
     is_public = models.BooleanField(default=True)
     allow_multiple = models.BooleanField(default=False)
     expires_at = models.DateTimeField(null=True, blank=True)
@@ -39,10 +51,13 @@ class Poll(models.Model):
     def __str__(self):
         return self.question[:80]
 
+
 # Option
 class Option(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    poll = models.ForeignKey(Poll, on_delete=models.CASCADE, related_name='options')
+    poll = models.ForeignKey(
+        Poll, on_delete=models.CASCADE, related_name='options'
+    )
     option_text = models.CharField(max_length=255, null=False)
     votes_count = models.IntegerField(default=0)  # cached total
 
@@ -52,35 +67,52 @@ class Option(models.Model):
     def __str__(self):
         return self.option_text
 
+
 # Vote
 class Vote(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='votes')
-    poll = models.ForeignKey(Poll, on_delete=models.CASCADE, related_name='votes')
-    option = models.ForeignKey(Option, on_delete=models.CASCADE, related_name='votes')
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='votes',
+    )
+    poll = models.ForeignKey(
+        Poll, on_delete=models.CASCADE, related_name='votes'
+    )
+    option = models.ForeignKey(
+        Option, on_delete=models.CASCADE, related_name='votes'
+    )
     voted_at = models.DateTimeField(default=timezone.now)
 
     class Meta:
         indexes = [
             models.Index(fields=['poll'], name='idx_votes_poll_id'),
             models.Index(fields=['user'], name='idx_votes_user_id'),
-            models.Index(fields=['poll', 'option'], name='idx_votes_poll_option'),
+            models.Index(
+                fields=['poll', 'option'], name='idx_votes_poll_option'
+            ),
         ]
         constraints = [
             models.UniqueConstraint(
-                fields=['user', 'option'],
-                name='unique_user_poll_vote'
+                fields=['user', 'option'], name='unique_user_poll_vote'
             )
         ]
 
     def __str__(self):
         return f'{self.user} -> {self.option}'
 
+
 # Comment
 class Comment(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    poll = models.ForeignKey(Poll, on_delete=models.CASCADE, related_name='comments')
-    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='comments')
+    poll = models.ForeignKey(
+        Poll, on_delete=models.CASCADE, related_name='comments'
+    )
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='comments',
+    )
     content = models.TextField(null=False)
     created_at = models.DateTimeField(default=timezone.now)
     updated_at = models.DateTimeField(auto_now=True)
@@ -94,10 +126,15 @@ class Comment(models.Model):
     def __str__(self):
         return f'Comment by {self.user} on {self.poll}'
 
+
 # Audit log
 class AuditLog(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='audit_logs')
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='audit_logs',
+    )
     action = models.CharField(max_length=100)
     target_type = models.CharField(max_length=50)
     target_id = models.UUIDField()

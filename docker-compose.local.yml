@@ -1,0 +1,24 @@
+# Opt-in only. This file does not extend the original Compose configuration.
+# docker compose --env-file .env.local -f docker-compose.local.yml up -d
+services:
+  db-local:
+    image: postgres:15
+    environment:
+      POSTGRES_DB: ${NEXUS_LOCAL_DB_NAME:?Set NEXUS_LOCAL_DB_NAME in .env.local}
+      POSTGRES_USER: ${NEXUS_LOCAL_DB_USER:?Set NEXUS_LOCAL_DB_USER in .env.local}
+      POSTGRES_PASSWORD: ${NEXUS_LOCAL_DB_PASSWORD:?Set a local-only password}
+    ports:
+      - "127.0.0.1:${NEXUS_LOCAL_DB_PORT:?Set NEXUS_LOCAL_DB_PORT}:5432"
+    volumes:
+      - nexus-local-pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - 'pg_isready -U "$$POSTGRES_USER" -d "$$POSTGRES_DB"'
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  nexus-local-pgdata:
+    name: project-nexus-local-pgdata

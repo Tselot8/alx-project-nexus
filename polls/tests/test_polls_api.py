@@ -1,17 +1,14 @@
-import json
 from rest_framework.test import APITestCase
 from django.urls import reverse
 from accounts.models import User
 from polls.models import Category, Poll, Option
-from django.test import TestCase
+
 
 class PollsApiTest(APITestCase):
 
     def setUp(self):
         self.user = User.objects.create_user(
-            email="admin@test.com",
-            username="admin",
-            password="pass1234"
+            email="admin@test.com", username="admin", password="pass1234"
         )
         self.client.force_authenticate(self.user)
 
@@ -26,7 +23,7 @@ class PollsApiTest(APITestCase):
             "options": [
                 {"option_text": "Apple"},
                 {"option_text": "Banana"},
-            ]
+            ],
         }
 
         response = self.client.post(url, payload, format='json')
@@ -40,7 +37,7 @@ class PollsApiTest(APITestCase):
         poll = Poll.objects.create(
             question="Best color?",
             created_by=self.user,
-            category=self.category
+            category=self.category,
         )
         Option.objects.create(poll=poll, option_text="Red")
         Option.objects.create(poll=poll, option_text="Blue")
@@ -55,20 +52,20 @@ class PollsApiTest(APITestCase):
         poll = Poll.objects.create(
             question="Old question?",
             created_by=self.user,
-            category=self.category
+            category=self.category,
         )
 
         url = reverse('poll-detail', args=[poll.id])
-        response = self.client.patch(url, {"question": "Updated"}, format='json')
+        response = self.client.patch(
+            url, {"question": "Updated"}, format='json'
+        )
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.data["question"], "Updated")
 
     def test_delete_poll(self):
         poll = Poll.objects.create(
-            question="Delete me?",
-            created_by=self.user,
-            category=self.category
+            question="Delete me?", created_by=self.user, category=self.category
         )
         url = reverse('poll-detail', args=[poll.id])
         response = self.client.delete(url)
@@ -79,11 +76,13 @@ class PollsApiTest(APITestCase):
         poll = Poll.objects.create(
             question="Favorite drink?",
             created_by=self.user,
-            category=self.category
+            category=self.category,
         )
 
         url = reverse('option-create', args=[poll.id])
-        response = self.client.post(url, {"option_text": "Coffee"}, format='json')
+        response = self.client.post(
+            url, {"option_text": "Coffee"}, format='json'
+        )
 
         self.assertEqual(response.status_code, 201)
         self.assertEqual(poll.options.count(), 1)
