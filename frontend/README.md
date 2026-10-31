@@ -1,10 +1,10 @@
-# Project Nexus frontend — Milestone G
+# Project Nexus frontend — Milestones G and H1
 
-React + TypeScript foundation. All application code is inside `frontend/`;
-Django stays at the repository root. Home, navigation, authentication and a
-private current-user profile are functional. Poll discovery/detail, creation,
-management, voting/results and profile editing are explicitly labeled previews
-for Milestone H. No mock polls or participation statistics are presented.
+React + TypeScript application inside frontend/; Django stays at the repository
+root. Home, public discovery, poll detail, private shared-link reading,
+authentication and the private current-user profile are functional. Creation,
+management, voting/results and profile editing remain labeled previews for
+later milestones. No fabricated polls or participation statistics are shown.
 
 ## Local development
 
@@ -69,9 +69,9 @@ polls/v2_urls.py, v2_views.py, v2_serializers.py in the backend.
   outside /api/v2/. Errors follow {error:{code,details}} and never retain request
   objects, passwords or raw network diagnostics.
 
-## Private-link foundation
+## Private-link reading
 
-Future share links use /polls/<uuid>#share=<43-character-token>. main.tsx removes
+Private share links use /polls/<uuid>#share=<43-character-token>. main.tsx removes
 the fragment with replaceState before rendering or bootstrapping authentication.
 POST shares/resolve/ receives {token}; its response poll ID must match the link
 and share.poll_id. X-Poll-Share is attached only to that poll's GET/HEAD detail,
@@ -81,8 +81,42 @@ The transport checks scope again and refuses redirects.
 Capabilities are independent of login and remain only in the current tab's
 memory. Reloading after fragment removal loses access: reopen the original
 link. No analytics are present; future analytics must initialize after fragment
-removal and must never collect private-link material. Full private-poll UX is H.
+removal and must never collect private-link material. Invalid/revoked links use the same unavailable screen as missing polls.
 A valid link grants reads only; it does not grant voting permission.
+
+## Discovery and detail contracts
+
+- Public discovery uses q (question/description, up to 200 characters),
+  category (UUID), status (published/closed), sort
+  (newest/oldest/closing_soon), and page. The backend returns effective closed
+  status for expired published polls and excludes private/draft/archived polls.
+- Search is submitted explicitly; submitted search/filter/page state is in the
+  URL and works with browser back/forward. Changed filters reset page to 1.
+  Replaced requests are cancelled and no previous search results are retained.
+- Pagination uses backend next/previous availability but computes local page
+  numbers; it never follows response URLs. Categories are also paginated:
+  More categories/Previous categories browse all choices without eager loading.
+  Names outside the loaded category page are explicitly marked not loaded.
+- Home shows up to three actual records from the newest public list. Cards do
+  not infer creator names, vote counts or engagement fields missing from the API.
+- Detail uses the real options, limits, lifecycle, expiration and results-policy
+  fields. Options are read-only text; no voting or results requests are made.
+  Results counts are neither rendered nor inferred. Creator navigation leads
+  to the existing workspace preview, never an unimplemented management route.
+- Detail query keys include user/session and share revision (never credentials).
+  Details revalidate on mount/focus and are removed when unobserved. Changing or
+  ending a share clears all detail queries and fences stale in-flight responses.
+  A denied detail read revokes its local grant; an expected results-policy 403
+  does not revoke otherwise valid poll access.
+- The fragment gate suspends page data loading until resolution succeeds,
+  including links opened at the home URL or through client navigation. Initial
+  fragments are stripped before bootstrap; in-app fragments are stripped in a
+  layout effect. Resolution failures never display backend diagnostic bodies.
+- Share capability remains independent of login in tab memory, but data caches
+  clear across identity changes. No private detail data is reused by a new
+  identity or a replaced share session. End private access clears the grant.
+  Revocation is checked on subsequent requests/focus; previously viewed content
+  cannot be recalled before a server recheck. No background results cache exists.
 
 ## Dependency security
 

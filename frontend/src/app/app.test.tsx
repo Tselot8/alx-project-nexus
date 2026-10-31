@@ -20,7 +20,7 @@ describe('routes and the accessible application shell', () => {
   it.each([
     ['/', 'Different voices.'],
     ['/polls', 'A good question is a great beginning.'],
-    ['/polls/' + pollId, 'A space for every perspective.'],
+    ['/polls/' + pollId, 'When should our community meet?'],
     ['/login', 'Welcome back to Nexus.'],
     ['/register', 'Every voice starts somewhere.'],
     ['/missing', 'This page isn’t here.'],
@@ -49,7 +49,7 @@ describe('routes and the accessible application shell', () => {
   it('bootstraps only once under StrictMode', async () => {
     const fetcher = anonymousNetwork()
     renderApp('/')
-    await waitFor(() => expect(fetcher).toHaveBeenCalledTimes(2))
+    await waitFor(() => expect(fetcher.mock.calls.filter(([path]) => String(path).includes('/auth/'))).toHaveLength(2))
     expect(fetcher.mock.calls.filter(([path]) => String(path).endsWith('/refresh/'))).toHaveLength(1)
   })
   it('supports menu disclosure, Escape focus return and navigation closing', async () => {

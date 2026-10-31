@@ -21,8 +21,24 @@ export function capturePrivateShare(browser: Pick<Window, 'location' | 'history'
 
 export class ShareVault {
   #grants = new Map<string, string>()
-  constructor(private http: HttpClient) {}
+  #revision = 0
+  #epoch = 0
+  #listeners = new Set<() => void>()
+  constructor(private http: HttpClient, private discardPollData: () => void = () => {}) {}
+  getSnapshot = () => this.#revision
+  subscribe = (listener: () => void) => {
+    this.#listeners.add(listener)
+    return () => { this.#listeners.delete(listener) }
+  }
+  #changed() {
+    this.#revision++
+    this.discardPollData()
+    for (const listener of this.#listeners) listener()
+  }
+  scope(pollId: string) { return this.#grants.has(pollId.toLowerCase()) ? 'share-' + this.#revision : 'unshared-' + this.#revision }
+  has(pollId: string) { return this.#grants.has(pollId.toLowerCase()) }
   async resolve(captured: Exclude<CapturedShare, null>, signal?: AbortSignal): Promise<string> {
+    const epoch = this.#epoch
     if ('invalid' in captured) throw new ApiError(400, 'invalid_link', 'This private link is invalid.')
     const result = await this.http.request<ShareResolution>('/api/v2/shares/resolve/', {
       method: 'POST', body: { token: captured.token }, signal,
@@ -35,7 +51,9 @@ export class ShareVault {
       throw new ApiError(404, 'invalid_link', 'This private link is unavailable.')
     }
     signal?.throwIfAborted()
+    if (epoch !== this.#epoch) throw new DOMException('Share access changed', 'AbortError')
     this.#grants.set(id.toLowerCase(), captured.token)
+    this.#changed()
     return id
   }
   credential(path: string, method: string) {
@@ -45,5 +63,12 @@ export class ShareVault {
     }
     return undefined
   }
-  clear() { this.#grants.clear() }
+  revoke(pollId: string) {
+    if (this.#grants.delete(pollId.toLowerCase())) { this.#epoch++; this.#changed() }
+  }
+  clear() {
+    this.#epoch++
+    this.#grants.clear()
+    this.#changed()
+  }
 }
