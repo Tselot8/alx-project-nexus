@@ -42,7 +42,7 @@ export function Home() {
       <div className="feature-grid">{[
         ['01', 'Find your curiosity', 'Explore public questions by topic and discover perspectives beyond your own.'],
         ['02', 'Understand the question', 'Read the options, closing date, and results policy before participating.'],
-        ['03', 'Bring people together', 'Poll creation, participation, and results tools are coming in upcoming releases.'],
+        ['03', 'Bring people together', 'Create and manage your polls. Participation and results screens are coming in the next release.'],
       ].map(([number, title, text]) => <Card key={number}><span className="feature-number">{number}</span>
         <h3>{title}</h3><p>{text}</p></Card>)}</div>
     </section>

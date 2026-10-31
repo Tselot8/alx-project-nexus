@@ -40,11 +40,13 @@ describe('routes and the accessible application shell', () => {
     network(path => {
       if (path.endsWith('/refresh/')) return json({ access: 'test-access', expires_in: 300 })
       if (path.endsWith('/me/')) return json({ user: alice })
+      if (path.startsWith('/api/v2/categories/') || path.startsWith('/api/v2/polls/mine/')) return json({ count: 0, next: null, previous: null, results: [] })
       return json({ csrf_token: 'test-csrf' })
     })
     renderApp('/polls/new')
     expect(await screen.findByRole('heading', { level: 1, name: 'What would you like to ask?' })).toBeInTheDocument()
-    expect(screen.getByText('This preview cannot create or save a poll.', { exact: false })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Save draft' })).toBeEnabled()
+    expect(screen.getByRole('form', { name: 'Create poll' })).toBeInTheDocument()
   })
   it('bootstraps only once under StrictMode', async () => {
     const fetcher = anonymousNetwork()
@@ -100,6 +102,7 @@ describe('account forms and cache isolation', () => {
     network(path => {
       if (path.endsWith('/refresh/')) return failure(401)
       if (path.endsWith('/login/')) return json(sessionData())
+      if (path.startsWith('/api/v2/categories/') || path.startsWith('/api/v2/polls/mine/')) return json({ count: 0, next: null, previous: null, results: [] })
       return json({ csrf_token: 'test-csrf' })
     })
     const user = userEvent.setup()
@@ -110,12 +113,16 @@ describe('account forms and cache isolation', () => {
     await user.click(screen.getByRole('button', { name: 'Sign in' }))
     expect(await screen.findByRole('heading', { name: 'Good questions start with you.' })).toBeInTheDocument()
     expect(services.queryClient.getMutationCache().getAll()).toEqual([])
-    expect(services.queryClient.getQueryCache().getAll()).toEqual([])
+    const cached = JSON.stringify(services.queryClient.getQueryCache().getAll().map(query => query.state.data))
+    expect(cached).not.toContain('test-access-one')
+    expect(cached).not.toContain('test-only-password')
+    expect(services.queryClient.getQueryCache().getAll().every(query => ['my-polls', 'categories'].includes(String(query.queryKey[0])))).toBe(true)
   })
   it('registers and renders the private current-user profile', async () => {
     network(path => {
       if (path.endsWith('/refresh/')) return failure(401)
       if (path.endsWith('/register/')) return json(sessionData(), 201)
+      if (path.startsWith('/api/v2/categories/') || path.startsWith('/api/v2/polls/mine/')) return json({ count: 0, next: null, previous: null, results: [] })
       return json({ csrf_token: 'test-csrf' })
     })
     const user = userEvent.setup()
@@ -132,6 +139,7 @@ describe('account forms and cache isolation', () => {
     network(path => {
       if (path.endsWith('/refresh/')) return failure(401)
       if (path.endsWith('/register/')) return failure(400, { password: ['This password is too common.'] }, 'invalid')
+      if (path.startsWith('/api/v2/categories/') || path.startsWith('/api/v2/polls/mine/')) return json({ count: 0, next: null, previous: null, results: [] })
       return json({ csrf_token: 'test-csrf' })
     })
     const user = userEvent.setup()
@@ -148,6 +156,7 @@ describe('account forms and cache isolation', () => {
     network(path => {
       if (path.endsWith('/login/')) return json(sessionData())
       if (path.endsWith('/logout/')) return json(null, 204)
+      if (path.startsWith('/api/v2/categories/') || path.startsWith('/api/v2/polls/mine/')) return json({ count: 0, next: null, previous: null, results: [] })
       return json({ csrf_token: 'test-csrf' })
     })
     const services = createServices()

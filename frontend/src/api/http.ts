@@ -35,6 +35,13 @@ function responseError(status: number, data: unknown): ApiError {
         .map(item => item.slice(0, 500))
     }
   }
+  // Profile validation is nested in the v2 account contract.
+  if (isRecord(details.profile)) {
+    for (const key of ['bio', 'location']) {
+      const values = details.profile[key]
+      if (Array.isArray(values)) fields['profile.' + key] = values.filter((item): item is string => typeof item === 'string').map(item => item.slice(0, 500))
+    }
+  }
   const fallback = status === 401 ? 'Your session has expired. Please sign in again.'
     : status === 403 ? 'You do not have access to this action.'
     : status === 404 ? 'This resource is unavailable.'

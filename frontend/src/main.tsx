@@ -6,10 +6,13 @@ import { AppErrorBoundary } from './app/error-boundary'
 import { Providers } from './app/providers'
 import { createServices } from './app/services'
 import { capturePrivateShare } from './features/sharing/share-vault'
+import { discardRecoveryCredentials } from './auth/navigation'
 import './styles/tokens.css'
 import './styles/global.css'
 
 // Remove credentials from the URL before any session bootstrap/network work.
+// Recovery is disabled. Do not retain credentials from an old reset link.
+discardRecoveryCredentials(window)
 const captured = capturePrivateShare(window)
 const services = createServices()
 const root = document.getElementById('root')

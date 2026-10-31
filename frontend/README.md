@@ -1,10 +1,9 @@
-# Project Nexus frontend — Milestones G and H1
+# Project Nexus frontend — Milestones G, H1 and H2
 
 React + TypeScript application inside frontend/; Django stays at the repository
 root. Home, public discovery, poll detail, private shared-link reading,
-authentication and the private current-user profile are functional. Creation,
-management, voting/results and profile editing remain labeled previews for
-later milestones. No fabricated polls or participation statistics are shown.
+authentication, creator workflows, private profile editing and password changes
+are functional. Voting and results visualization remain deferred to H3. No fabricated polls or participation statistics are shown.
 
 ## Local development
 
@@ -47,8 +46,8 @@ polls/v2_urls.py, v2_views.py, v2_serializers.py in the backend.
 - POST auth/refresh/ uses the backend-managed nexus_v2_refresh_token cookie
   scoped to /api/v2/auth/ and returns access/expires_in only. GET auth/me/
   returns {user}. POST auth/logout/ revokes the cookie session and returns 204.
-- Account fields are id, username, email and profile {bio, location}. Identity
-  changes, email changes and privileged fields have no editable frontend input.
+- Account fields are id, username, email and profile {bio, location}.
+  Email changes and privileged/security fields have no editable frontend input.
 - Cookie operations use X-CSRFToken, including login/register. After a
   CSRF-specific 403, bootstrap and retry once; other failures are not replayed.
 - Access/CSRF values and share capabilities stay in memory. No browser storage,
@@ -101,8 +100,8 @@ A valid link grants reads only; it does not grant voting permission.
   not infer creator names, vote counts or engagement fields missing from the API.
 - Detail uses the real options, limits, lifecycle, expiration and results-policy
   fields. Options are read-only text; no voting or results requests are made.
-  Results counts are neither rendered nor inferred. Creator navigation leads
-  to the existing workspace preview, never an unimplemented management route.
+  Results counts are neither rendered nor inferred. Creator navigation opens
+  the authenticated, owner-only poll management route.
 - Detail query keys include user/session and share revision (never credentials).
   Details revalidate on mount/focus and are removed when unobserved. Changing or
   ending a share clears all detail queries and fences stale in-flight responses.
@@ -117,6 +116,58 @@ A valid link grants reads only; it does not grant voting permission.
   identity or a replaced share session. End private access clears the grant.
   Revocation is checked on subsequent requests/focus; previously viewed content
   cannot be recalled before a server recheck. No background results cache exists.
+
+## Creator and account workflows (H2)
+
+- /polls/new explicitly saves an incomplete draft with its options in one POST.
+  Review and publish uses a separate publish POST after the draft is acknowledged.
+  Failed publication retains the known draft and opens management with a clear
+  notice. An unconfirmed creation response never triggers automatic reposting;
+  keep the entered form, check My polls in another tab, and explicitly acknowledge
+  duplicate risk before allowing a new creation attempt.
+- /my-polls uses the authenticated mine endpoint, status/search/category/sort/page
+  filters, and identity-scoped, short-lived query data. Unexpected non-owner
+  records are rejected before entering the query cache.
+- /polls/:id/manage checks ownership before rendering controls. Configuration
+  editing requires configuration_locked=False and configuration_editable=True;
+  NULL/unknown history remains locked. Archived content is read-only.
+- Settings are PATCHed separately from individual option operations. Each option
+  save is its own transaction. Published polls must remain valid after every
+  step; close first for edits requiring an incomplete intermediate option set.
+  Unconfirmed option creation requires a fresh read/review before another POST.
+  The schema provides no editable option order.
+- A changed version prompts editor reload without overwriting unsaved text.
+  The API does not accept a conditional version write: this is a stale-editor
+  warning, not a guarantee of optimistic concurrency across browser tabs.
+  Backend authorization and transactional invariants remain authoritative.
+- Publish/close/reopen/archive and draft deletion require explicit confirmation.
+  Reopen requires a future local closing date or an explicit no-expiration choice.
+  Archiving cannot be reversed. Only verified, unlocked drafts offer deletion.
+- Private sharing GET caches only allowlisted active/generation metadata. Issue
+  and regenerate responses bypass Query mutations/caches; a fragment link is
+  shown only once in component memory and copied only on request. It is hidden
+  if a different generation or revoked state is subsequently observed.
+  Drafts cannot issue links; archived polls cannot issue/regenerate, but existing
+  archived links may be revoked as the backend permits for credential security.
+- Profile PATCH sends username and profile {bio,location} only. Nested backend
+  profile errors remain associated with fields. The sanitized current account
+  updates the shell without putting authentication credentials into query data.
+- Password change sends current_password/new_password with bearer auth and CSRF,
+  serialized with cookie operations. A confirmed 204 clears memory and private
+  queries and requires sign-in again. Ambiguous failures clear local identity
+  without claiming that all server sessions were revoked.
+- /forgot-password and /reset-password explain that recovery is disabled. They
+  send no reset requests and never promise email delivery. Old reset-link query
+  and fragment credentials are discarded before bootstrap. SMTP/trusted-origin
+  setup and recovery activation require a separate backend/release review.
+- Explicit-save forms guard refresh/close and ordinary in-app link clicks when
+  dirty; declined navigation preserves the form. Browser history Back/Forward
+  is not blocked by the current declarative router. No drafts or credentials
+  are persisted in browser storage. Confirmations focus their heading and restore
+  the trigger when it remains mounted.
+- Command groups are tied to a session generation. Identity changes cancel
+  query data, remount protected forms, and prevent late operations/adoption
+  from continuing as another user. Secrets never enter TanStack mutation caches.
 
 ## Dependency security
 

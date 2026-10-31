@@ -67,8 +67,9 @@ export function PollDetailPage() {
           <dt>Results policy</dt><dd>{poll.results_visibility === 'immediate' ? 'Immediately'
             : poll.results_visibility === 'after_voting' ? 'After voting · participation remains required after closing' : 'After closing · hidden again if reopened'}</dd></dl>
         <p className="metadata">Charts and aggregate results are coming in the results release. No vote counts are displayed here.</p>
-        {owner && <><p>You own this poll. Management tools are coming in the creator release.</p>
-          <Link to="/my-polls" className="button button--secondary">My polls workspace</Link></>}
+        {owner && <><p>You own this poll. Open the creator workspace to manage settings and lifecycle.</p>
+          <Link to="/my-polls" className="button button--secondary">My polls workspace</Link>
+          <Link to={'/polls/' + poll.id + '/manage'} className="button button--primary">Manage this poll</Link></>}
       </Card>
       {shared && <Feedback>Private access is active for this tab. Reopen the original shared link after a refresh.
         <Button variant="quiet" onClick={() => shares.revoke(id)}>End private access</Button></Feedback>}

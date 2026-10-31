@@ -32,5 +32,5 @@ export function ProtectedRoute() {
   if (session.status === 'anonymous') {
     return <Navigate replace to={'/login?returnTo=' + encodeURIComponent(safeReturnTo(location.pathname))} />
   }
-  return <Outlet />
+  return <Outlet key={session.user.id + ':' + actions.generation} />
 }

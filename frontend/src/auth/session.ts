@@ -44,6 +44,7 @@ export class Session {
   #refreshFlight: Promise<string> | undefined
   #tail: Promise<unknown> = Promise.resolve()
   #epoch = 0
+  #accountRevision = 0
 
   constructor(private http: HttpClient, private clearPrivateData: () => void = () => {}) {}
   get generation() { return this.#epoch }
@@ -97,9 +98,9 @@ export class Session {
     this.#csrfFlight = pending
     try { return await pending } finally { this.#csrfFlight = undefined }
   }
-  async #cookiePost<T>(path: string, body: unknown = {}): Promise<T> {
+  async #cookiePost<T>(path: string, body: unknown = {}, accessToken?: string): Promise<T> {
     const send = async () => this.http.request<T>(path, {
-      method: 'POST', body, csrf: await this.#getCsrf(),
+      method: 'POST', body, csrf: await this.#getCsrf(), access: accessToken,
     })
     try { return await send() } catch (error) {
       // The backend rejects CSRF in initial(), before any handler side effects.
@@ -138,8 +139,12 @@ export class Session {
         const token = await this.#cookiePost<RefreshResponse>('/api/v2/auth/refresh/')
         this.#check(epoch)
         access(token)
+        const revision = this.#accountRevision
         const data = await this.http.request<{ user: Account }>('/api/v2/auth/me/', { access: token.access })
-        this.#adopt(account(data.user), token, epoch)
+        const user = account(data.user)
+        const current = this.#state
+        // Do not overwrite a just-confirmed profile update with an older me response.
+        this.#adopt(revision !== this.#accountRevision && current.status === 'authenticated' && current.user.id === user.id ? current.user : user, token, epoch)
         return token.access
       } catch (error) { this.#failed(error, epoch); throw error }
     })
@@ -178,6 +183,41 @@ export class Session {
         this.#adopt(account(data.user), data, epoch)
       } catch (error) {
         if (epoch === this.#epoch) this.#forget({ status: 'anonymous' })
+        throw error
+      }
+    })
+  }
+  adoptAccount(value: unknown, epoch: number) {
+    this.#check(epoch)
+    const user = account(value)
+    if (this.#state.status !== 'authenticated' || this.#state.user.id !== user.id) throw changed()
+    this.#accountRevision++
+    this.#publish({ status: 'authenticated', user })
+    return user
+  }
+  async changePassword(currentPassword: string, newPassword: string) {
+    const epoch = this.#epoch
+    const token = await this.token()
+    this.#check(epoch)
+    return this.#schedule(async () => {
+      this.#check(epoch)
+      try {
+        await this.#cookiePost<void>('/api/v2/auth/password/change/', {
+          current_password: currentPassword, new_password: newPassword,
+        }, token)
+        this.#check(epoch)
+        this.#epoch++
+        this.#csrf = undefined
+        this.#forget({ status: 'anonymous' })
+      } catch (error) {
+        if (epoch === this.#epoch && error instanceof ApiError) {
+          if (error.status === 401) this.expire(token)
+          else if (error.status === 0 || error.status >= 500) {
+            // An interrupted response may follow a committed password change.
+            this.#epoch++
+            this.#forget({ status: 'anonymous' })
+          }
+        }
         throw error
       }
     })

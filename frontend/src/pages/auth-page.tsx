@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react'
 import type { FormEvent } from 'react'
-import { Link, Navigate, useSearchParams } from 'react-router'
+import { Link, Navigate, useLocation, useSearchParams } from 'react-router'
 import { useServices, useSession } from '../app/providers'
 import { ApiError } from '../api/http'
 import { safeReturnTo } from '../auth/navigation'
@@ -10,6 +10,7 @@ export function AuthPage({ register = false }: { register?: boolean }) {
   const { session } = useServices()
   const snapshot = useSession()
   const [params] = useSearchParams()
+  const location = useLocation()
   const destination = safeReturnTo(params.get('returnTo'))
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<ApiError | null>(null)
@@ -42,6 +43,7 @@ export function AuthPage({ register = false }: { register?: boolean }) {
       <p>Good questions make room for everyone.</p></div>
   </div><Card className="auth-card"><h2>{register ? 'Create your account' : 'Sign in'}</h2>
     <p>{register ? 'Start with the essentials.' : 'Use the email address for your account.'}</p>
+    {typeof location.state?.accountNotice === 'string' && <Feedback>{location.state.accountNotice}</Feedback>}
     {error && <div ref={errorSummary} tabIndex={-1}><Feedback tone="error">{error.message}</Feedback></div>}
     <form method="post" onSubmit={event => { void submit(event) }} aria-label={register ? 'Registration' : 'Sign in'} aria-busy={busy}>
       {register && <Field label="Username" name="username" autoComplete="username" maxLength={50} required disabled={busy} error={error?.fieldErrors.username} />}
@@ -54,6 +56,6 @@ export function AuthPage({ register = false }: { register?: boolean }) {
       <Button type="submit" pending={busy}>{busy ? 'Please wait…' : register ? 'Create account' : 'Sign in'}<span aria-hidden="true">↗</span></Button>
     </form>
     <p className="auth-switch">{register ? 'Already have an account?' : 'New to Nexus?'} <Link to={alternate}>{register ? 'Sign in' : 'Create an account'}</Link></p>
-    <p className="supporting-copy">Password recovery and account settings will be added with the full account experience.</p>
+    <p className="supporting-copy"><Link to="/forgot-password">Forgot your password?</Link> Secure email recovery is not available yet.</p>
   </Card></section>
 }
