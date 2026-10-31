@@ -45,6 +45,20 @@ class User(AbstractBaseUser, PermissionsMixin):
     is_staff = models.BooleanField(default=False)  # admin site access
     date_joined = models.DateTimeField(default=timezone.now)
 
+    auth_version = models.PositiveBigIntegerField(
+        default=1,
+        db_default=1,
+        editable=False,
+    )
+
+    class Meta:
+        constraints = [
+            models.CheckConstraint(
+                condition=models.Q(auth_version__gte=1),
+                name="ck_user_auth_version",
+            ),
+        ]
+
     objects = UserManager()
 
     USERNAME_FIELD = 'email'

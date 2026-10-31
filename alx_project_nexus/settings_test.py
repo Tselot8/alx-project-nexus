@@ -28,3 +28,5 @@ CACHES = {
         "KEY_PREFIX": "nexus-tests",
     }
 }
+
+NEXUS_REFRESH_COOKIE_SECURE = False

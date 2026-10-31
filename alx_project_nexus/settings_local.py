@@ -11,6 +11,7 @@ if os.getenv("DJANGO_SETTINGS_MODULE") != __name__:
 from .settings import *  # noqa: E402,F401,F403
 from .settings import (  # noqa: E402
     BASE_DIR,
+    _account_email_settings,
     _hosts,
     _isolated_database,
     _origins,
@@ -42,3 +43,7 @@ CACHES = {
         "KEY_PREFIX": "nexus-local",
     }
 }
+
+# Re-read account email configuration after the isolated dotenv load.
+globals().update(_account_email_settings())
+NEXUS_REFRESH_COOKIE_SECURE = False

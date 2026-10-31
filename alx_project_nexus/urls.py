@@ -17,9 +17,9 @@ Including another URLconf
 
 from django.contrib import admin
 from django.urls import path, include, re_path
-from rest_framework_simplejwt.views import (
-    TokenObtainPairView,
-    TokenRefreshView,
+from accounts.jwt_views import (
+    LegacyTokenObtainPairView as TokenObtainPairView,
+    LegacyTokenRefreshView as TokenRefreshView,
 )
 from rest_framework import permissions
 from drf_yasg.views import get_schema_view
@@ -41,6 +41,7 @@ urlpatterns = [
     path("admin/", admin.site.urls),
     path("api/polls/", include("polls.urls")),
     path("api/accounts/", include("accounts.urls")),
+    path("api/v2/auth/", include("accounts.v2_urls")),
     path(
         'api/token/', TokenObtainPairView.as_view(), name='token_obtain_pair'
     ),

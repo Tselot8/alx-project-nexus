@@ -227,7 +227,7 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": (
-        "rest_framework_simplejwt.authentication.JWTAuthentication",
+        "accounts.authentication.VersionedJWTAuthentication",
     ),
     "DEFAULT_PERMISSION_CLASSES": (
         "rest_framework.permissions.IsAuthenticatedOrReadOnly",
@@ -248,3 +248,51 @@ CACHES = {
 SECURE_SSL_REDIRECT = True
 CSRF_COOKIE_SECURE = True
 SESSION_COOKIE_SECURE = True
+
+# V2 cookie sessions keep the legacy JWT lifetimes and JSON routes unchanged.
+INSTALLED_APPS += ["rest_framework_simplejwt.token_blacklist"]
+NEXUS_REFRESH_COOKIE_SECURE = True  # Explicit local/test overrides only.
+PASSWORD_RESET_TIMEOUT = 1800
+REST_FRAMEWORK["DEFAULT_THROTTLE_RATES"] = {
+    "v2_auth": "30/min",
+    "v2_login": "10/min",
+    "v2_account": "120/min",
+    "v2_recovery": "5/hour",
+}
+
+
+def _account_email_settings():
+    enabled = os.getenv("NEXUS_PASSWORD_RESET_ENABLED", "false").lower()
+    if enabled not in {"true", "false"}:
+        raise ImproperlyConfigured(
+            "NEXUS_PASSWORD_RESET_ENABLED must be true or false."
+        )
+    origins = _origins(
+        "NEXUS_PASSWORD_RESET_FRONTEND_ORIGIN", loopback_only=_ISOLATED
+    )
+    if len(origins) > 1 or (enabled == "true" and not origins):
+        raise ImproperlyConfigured(
+            "Password recovery requires one trusted frontend origin."
+        )
+    host = os.getenv("NEXUS_EMAIL_HOST", "")
+    sender = os.getenv("NEXUS_DEFAULT_FROM_EMAIL", "")
+    username = os.getenv("NEXUS_EMAIL_HOST_USER", "")
+    password = os.getenv("NEXUS_EMAIL_HOST_PASSWORD", "")
+    if enabled == "true" and not _ISOLATED:
+        if not host or not sender or (username and not password):
+            raise ImproperlyConfigured(
+                "Password recovery requires explicit SMTP configuration."
+            )
+    return {
+        "NEXUS_PASSWORD_RESET_ENABLED": enabled == "true",
+        "NEXUS_PASSWORD_RESET_ORIGIN": origins[0] if origins else "",
+        "EMAIL_HOST": host,
+        "EMAIL_PORT": 587,
+        "EMAIL_USE_TLS": True,
+        "EMAIL_HOST_USER": username,
+        "EMAIL_HOST_PASSWORD": password,
+        "DEFAULT_FROM_EMAIL": sender,
+    }
+
+
+globals().update(_account_email_settings())
