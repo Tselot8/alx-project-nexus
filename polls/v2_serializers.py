@@ -177,3 +177,14 @@ class PollDetail(PollSummary):
             poll.status != Poll.Status.ARCHIVED
             and not configuration_is_locked(poll)
         )
+
+
+class BallotInput(StrictInput, serializers.Serializer):
+    option_ids = serializers.ListField(
+        child=serializers.UUIDField(), allow_empty=False, max_length=100
+    )
+
+    def validate_option_ids(self, values):
+        if len(values) != len(set(values)):
+            raise serializers.ValidationError("Choose each option only once.")
+        return values

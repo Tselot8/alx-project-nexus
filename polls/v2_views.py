@@ -1,4 +1,4 @@
-"""Poll management and read-only share capabilities. No ballot API yet."""
+"""Poll management, scoped shares, atomic ballots and aggregate results."""
 
 from django.db import transaction
 from django.db.models import F, Q
@@ -297,3 +297,68 @@ class ShareResolveView(PollView):
                 "share": {"poll_id": str(poll.pk), "header": "X-Poll-Share"},
             }
         )
+
+
+class BallotView(PollView):
+    """Only the current user's complete ballot; no withdrawal operation."""
+
+    @transaction.atomic
+    def post(self, request, pk):
+        from rest_framework.exceptions import ValidationError
+        from .ballots import submit
+        from .services import PollExpiredError
+        from .v2_serializers import BallotInput
+
+        data = self.parse(BallotInput, request.data)
+        try:
+            ballot, _, _ = submit(request.user, pk, data["option_ids"])
+        except PollExpiredError as error:
+            raise ValidationError({"poll": [str(error)]}) from None
+        return Response(self.ballot_data(ballot))
+
+    @transaction.atomic
+    def get(self, request, pk):
+        from .ledger import current_selection
+
+        poll = get_poll(request.user, pk, for_update=True)
+        ballot, options, submitted_at = current_selection(
+            poll, request.user.pk
+        )
+        return Response(
+            {
+                "poll_id": str(poll.pk),
+                "option_ids": [str(value) for value in sorted(options)],
+                "submitted_at": submitted_at,
+                "updated_at": ballot.updated_at if ballot else None,
+                "submitted": submitted_at is not None,
+            }
+        )
+
+    def ballot_data(self, ballot):
+        return {
+            "poll_id": str(ballot.poll_id),
+            "option_ids": [
+                str(value)
+                for value in ballot.selections.order_by(
+                    "option_id"
+                ).values_list("option_id", flat=True)
+            ],
+            "submitted_at": ballot.submitted_at,
+            "updated_at": ballot.updated_at,
+            "submitted": True,
+        }
+
+
+class ResultsView(PollView):
+    permission_classes = [permissions.AllowAny]
+
+    @transaction.atomic
+    def get(self, request, pk):
+        from rest_framework.exceptions import PermissionDenied
+        from .ledger import results
+        from .policy import can_view_results
+
+        poll = self.read_poll(request, pk)
+        if not can_view_results(request.user, poll):
+            raise PermissionDenied("Results are not available to you.")
+        return Response(results(poll))

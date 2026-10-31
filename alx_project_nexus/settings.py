@@ -301,3 +301,22 @@ globals().update(_account_email_settings())
 DEFAULT_EXCEPTION_REPORTER_FILTER = (
     "polls.exception_filter.ShareAwareExceptionReporterFilter"
 )
+
+
+# F: explicit, fail-closed voting-store rollout. Enabling writes is an
+# operator assertion that ALL old Vote writers (including workers) are drained.
+# Do not enable ballot-only reads until backfill_ballots --reconcile succeeds.
+def _ballot_settings():
+    mode = os.getenv("NEXUS_BALLOT_AUTHORITY", "bridge")
+    enabled = os.getenv(
+        "NEXUS_BALLOT_WRITES_ENABLED", "true" if _ISOLATED else "false"
+    ).lower()
+    if mode not in {"bridge", "ballots"} or enabled not in {"true", "false"}:
+        raise ImproperlyConfigured("Invalid ballot rollout configuration.")
+    return {
+        "NEXUS_BALLOT_AUTHORITY": mode,
+        "NEXUS_BALLOT_WRITES_ENABLED": enabled == "true",
+    }
+
+
+globals().update(_ballot_settings())

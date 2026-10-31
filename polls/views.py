@@ -1,8 +1,8 @@
-from django.db import transaction, models
+from django.db import transaction
+from django.utils import timezone
 from rest_framework import generics
 from rest_framework.permissions import IsAuthenticated
-from django.utils import timezone
-from .models import Poll, Option, Vote, AuditLog
+from .models import Poll, Option, AuditLog
 from . import management
 from .policy import can_view_results, public_discovery
 from .permissions import CanAccessPoll
@@ -11,13 +11,11 @@ from .services import (
     get_poll,
     get_resource_or_404,
     private_response,
-    require_active_user,
     visible_polls,
 )
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.exceptions import PermissionDenied
-from django.db.models import Count, Q
 from .serializers import (
     PollSerializer,
     PollCreateSerializer,
@@ -25,7 +23,6 @@ from .serializers import (
     OptionSerializer,
 )
 from django.core.cache import cache
-from django.db.models import Prefetch
 from rest_framework.decorators import api_view, permission_classes
 
 
@@ -38,116 +35,10 @@ def _invalidate_poll_cache(poll_id):
 
 
 def cast_vote(user, poll_id, option_id):
-    """
-    Cast a vote for a poll option.
-    Supports single-choice and multiple-choice polls.
-    """
-    require_active_user(user)
-    with transaction.atomic():
-        poll = get_poll(user, poll_id, for_update=True)
-        option = get_resource_or_404(
-            Option.objects.select_for_update(), id=option_id, poll_id=poll_id
-        )
+    """Legacy per-option adapter; Vote history is now immutable."""
+    from .ballots import legacy_vote
 
-        # Check poll expiration
-        if poll.expires_at and poll.expires_at <= timezone.now():
-            raise PollExpiredError("Poll expired")
-
-        if poll.status != Poll.Status.PUBLISHED:
-            raise PollExpiredError("Poll is not open for voting")
-        if poll.allow_multiple and (
-            poll.min_selections != 1 or poll.max_selections is not None
-        ):
-            raise PollExpiredError(
-                "This configuration requires complete-ballot voting."
-            )
-        if (
-            not poll.allow_multiple
-            and Vote.objects.filter(user=user, poll=poll).count() > 1
-        ):
-            raise PollExpiredError("Historical selections need review.")
-        if poll.configuration_locked is not True:
-            poll.configuration_locked = True
-            poll.version += 1
-            # Do not disclose first-vote timing as a public content update.
-            poll.save(update_fields=["configuration_locked", "version"])
-
-        if poll.allow_multiple:
-            # Multiple-choice: user can vote for multiple options
-            vote, created = Vote.objects.get_or_create(
-                user=user, option=option, poll=poll
-            )
-            if created:
-                # Increment option's votes_count
-                Option.objects.filter(id=option.id).update(
-                    votes_count=models.F("votes_count") + 1
-                )
-                option.refresh_from_db(fields=["votes_count"])
-
-                # Log the action
-                log_action(
-                    user=user,
-                    action="Voted on poll (multi-choice)",
-                    target_type="Poll",
-                    target_id=poll_id,
-                )
-                _invalidate_poll_cache(poll_id)
-            return vote, option.votes_count
-        else:
-            # Single-choice: only one vote per user
-            existing_vote = (
-                Vote.objects.select_for_update()
-                .select_related('option')
-                .filter(user=user, poll_id=poll_id)
-                .first()
-            )
-
-            if existing_vote:
-                old_option = existing_vote.option
-
-                if old_option.id == option.id:
-                    return existing_vote, old_option.votes_count  # No change
-
-                # Decrement old option
-                Option.objects.filter(id=old_option.id).update(
-                    votes_count=models.F("votes_count") - 1
-                )
-
-                # Update vote record
-                existing_vote.option = option
-                existing_vote.save()
-
-                # Increment new option
-                Option.objects.filter(id=option.id).update(
-                    votes_count=models.F("votes_count") + 1
-                )
-                option.refresh_from_db(fields=["votes_count"])
-
-                # Logging and cache
-                log_action(
-                    user=user,
-                    action="Changed vote on poll",
-                    target_type="Poll",
-                    target_id=poll_id,
-                )
-                _invalidate_poll_cache(poll_id)
-                return existing_vote, option.votes_count
-
-            # First-time vote
-            vote = Vote.objects.create(user=user, poll=poll, option=option)
-            Option.objects.filter(id=option.id).update(
-                votes_count=models.F("votes_count") + 1
-            )
-            option.refresh_from_db(fields=["votes_count"])
-
-            log_action(
-                user=user,
-                action="Voted on poll",
-                target_type="Poll",
-                target_id=poll_id,
-            )
-            _invalidate_poll_cache(poll_id)
-            return vote, option.votes_count
+    return legacy_vote(user, poll_id, option_id, clock=timezone.now)
 
 
 def log_action(user, action, target_type, target_id):
@@ -168,6 +59,7 @@ def log_action(user, action, target_type, target_id):
 
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
+@transaction.atomic
 def vote_view(request, poll_id, option_id):
     try:
         vote, votes_count = cast_vote(
@@ -260,12 +152,7 @@ class PollDetailView(
     queryset = (
         Poll.objects.all()
         .select_related("category", "created_by")
-        .prefetch_related(
-            Prefetch(
-                "options",
-                queryset=Option.objects.annotate(total_votes=Count("votes")),
-            )
-        )
+        .prefetch_related("options")
     )
     serializer_class = PollDetailSerializer
     permission_classes = [CanAccessPoll]
@@ -374,22 +261,17 @@ class PollResultsView(PrivatePollResponseMixin, APIView):
         if not can_view_results(request.user, poll):
             raise PermissionDenied("Results are not available to you.")
         self.accessed_poll = poll
-        options = (
-            Option.objects.filter(poll_id=poll.pk)
-            .annotate(
-                total_votes=Count("votes", filter=Q(votes__poll_id=poll.pk))
-            )
-            .only("id", "option_text")
-        )
-        # B1 deliberately bypasses legacy payload caches and stored counters.
+        from .ledger import results
+
+        aggregate = results(poll)
         options_list = [
             {
-                "id": str(option.pk),
-                "option_text": option.option_text,
-                "votes_count": option.total_votes,
-                "total_votes": option.total_votes,
+                "id": row["id"],
+                "option_text": row["option_text"],
+                "votes_count": row["count"],
+                "total_votes": row["count"],
             }
-            for option in options
+            for row in aggregate["options"]
         ]
         return Response(
             {

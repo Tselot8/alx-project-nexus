@@ -17,7 +17,14 @@ from django.utils import timezone
 from rest_framework.exceptions import NotAuthenticated
 from rest_framework.test import APIClient
 
-from polls.models import AuditLog, Option, Poll, Vote
+from polls.models import (
+    AuditLog,
+    Ballot,
+    BallotSelection,
+    Option,
+    Poll,
+    Vote,
+)
 from polls.views import cast_vote
 from .test_poll_permissions import SecurityFixtures
 
@@ -114,7 +121,7 @@ class VoteSecurityTests(SecurityFixtures, TestCase):
             },
         )
         self.reject(client, "delete", self.url(self.public, first), 405)
-        vote = Vote.objects.get(poll=self.public)
+        vote = Ballot.objects.get(poll=self.public)
         self.assertEqual(vote.user_id, self.other.pk)
         before = self.snapshot()
         self.assertEqual(
@@ -124,7 +131,7 @@ class VoteSecurityTests(SecurityFixtures, TestCase):
         self.assertEqual(
             client.post(self.url(self.public, second)).status_code, 200
         )
-        self.assertEqual(Vote.objects.filter(poll=self.public).count(), 1)
+        self.assertEqual(Ballot.objects.filter(poll=self.public).count(), 1)
         first.refresh_from_db()
         second.refresh_from_db()
         self.assertEqual((first.votes_count, second.votes_count), (0, 1))
@@ -141,7 +148,10 @@ class VoteSecurityTests(SecurityFixtures, TestCase):
                 200,
             )
         self.assertEqual(
-            Vote.objects.filter(user=self.other, poll=self.public).count(), 2
+            BallotSelection.objects.filter(
+                ballot__user=self.other, poll=self.public
+            ).count(),
+            2,
         )
         for option in (first, second):
             option.refresh_from_db()
@@ -210,11 +220,12 @@ class VoteConcurrencyTests(SecurityFixtures, TransactionTestCase):
             ]
             self.assertTrue(all(f.result(timeout=15) for f in futures))
         self.assertEqual(
-            Vote.objects.filter(user=self.other, poll=self.public).count(), 1
+            Ballot.objects.filter(user=self.other, poll=self.public).count(), 1
         )
         for option in Option.objects.filter(poll=self.public):
             self.assertEqual(
-                option.votes_count, Vote.objects.filter(option=option).count()
+                option.votes_count,
+                BallotSelection.objects.filter(option=option).count(),
             )
         self.assertEqual(
             sum(
@@ -349,5 +360,6 @@ class VoteConcurrencyTests(SecurityFixtures, TransactionTestCase):
             self.assertEqual(future.result(timeout=15), 400)
         self.public.refresh_from_db()
         self.assertFalse(self.public.allow_multiple)
-        self.assertEqual(Vote.objects.count(), 1)
+        self.assertEqual(Ballot.objects.count(), 1)
+        self.assertFalse(Vote.objects.exists())
         self.assertEqual(AuditLog.objects.count(), 1)

@@ -90,15 +90,9 @@ def can_view_results(user, poll):
             Poll.Status.CLOSED,
             Poll.Status.ARCHIVED,
         }
-    return bool(
-        user is not None
-        and user.is_authenticated
-        and Vote.objects.filter(
-            user_id=user.pk,
-            poll_id=poll.pk,
-            option__poll_id=poll.pk,
-        ).exists()
-    )
+    from .ledger import has_participated
+
+    return has_participated(poll, user)
 
 
 @sensitive_variables()

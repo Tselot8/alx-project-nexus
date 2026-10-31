@@ -389,7 +389,7 @@ class ResultsPrivacyTests(EFixtures, TestCase):
             200,
         )
 
-    def test_stale_cache_cannot_override_restrictions_and_v2_has_no_results(
+    def test_stale_cache_cannot_override_legacy_and_v2_results_policy(
         self,
     ):
         self.set_policy("after_closing")
@@ -402,7 +402,7 @@ class ResultsPrivacyTests(EFixtures, TestCase):
         )
         self.assertEqual(
             self.guest.get(self.detail(self.public) + "results/").status_code,
-            404,
+            403,
         )
         for client in (self.guest, self.auth(self.other)):
             data = client.get(self.detail(self.public)).data

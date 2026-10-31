@@ -22,7 +22,24 @@ class PollAdmin(admin.ModelAdmin):
 
 admin.site.register(Poll, PollAdmin)
 admin.site.register(Option)
-admin.site.register(Vote)
+
+
+class HistoricalVoteAdmin(admin.ModelAdmin):
+    """Immutable source evidence: all participation now uses ballots."""
+
+    actions = None
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False
+
+
+admin.site.register(Vote, HistoricalVoteAdmin)
 admin.site.register(Category)
 admin.site.register(Comment)
 admin.site.register(AuditLog)

@@ -5,7 +5,7 @@ from datetime import timedelta
 from django.test import TestCase
 from django.utils import timezone
 
-from polls.models import AuditLog, Poll, Vote
+from polls.models import AuditLog, Ballot, Poll, Vote
 from .test_v2_discovery import BASE, EFixtures
 
 
@@ -259,7 +259,9 @@ class LifecycleTests(EFixtures, TestCase):
             400,
             {"option_text": "Changed"},
         )
-        Vote.objects.filter(poll=self.public).delete()
+        # F native votes use ballots. Even removing all present participation
+        # as a test fixture operation must never clear the permanent lock.
+        Ballot.objects.filter(poll=self.public).delete()
         self.rejected(
             client,
             "patch",

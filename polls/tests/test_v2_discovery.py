@@ -102,6 +102,10 @@ class EFixtures:
             "polls": list(Poll.objects.order_by("id").values()),
             "options": list(Option.objects.order_by("id").values()),
             "votes": list(Vote.objects.order_by("id").values()),
+            "ballots": list(Ballot.objects.order_by("pk").values()),
+            "selections": list(
+                BallotSelection.objects.order_by("pk").values()
+            ),
             "audit": list(AuditLog.objects.order_by("id").values()),
             "shares": list(
                 PollShareToken.objects.order_by("poll_id").values()

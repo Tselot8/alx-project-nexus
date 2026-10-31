@@ -1,7 +1,7 @@
 import pytest
 from django.utils import timezone
 from accounts.models import User
-from polls.models import Category, Poll, Option, Vote
+from polls.models import Category, Poll, Option, Ballot, BallotSelection, Vote
 from polls.views import cast_vote
 from django.test import TestCase
 
@@ -21,7 +21,9 @@ class TestVoteService(TestCase):
 
         vote, count = cast_vote(user, poll.id, opt1.id)
 
-        assert Vote.objects.count() == 1
+        assert Ballot.objects.count() == 1
+        assert BallotSelection.objects.count() == 1
+        assert not Vote.objects.exists()
         assert count == 1
         assert vote.option == opt1
 
@@ -45,7 +47,9 @@ class TestVoteService(TestCase):
         opt1.refresh_from_db()
         opt2.refresh_from_db()
 
-        assert Vote.objects.count() == 1
+        assert Ballot.objects.count() == 1
+        assert BallotSelection.objects.count() == 1
+        assert not Vote.objects.exists()
         assert vote.option == opt2
         assert opt1.votes_count == 0
         assert opt2.votes_count == 1
@@ -63,7 +67,9 @@ class TestVoteService(TestCase):
         cast_vote(user, poll.id, opt1.id)
         vote, count = cast_vote(user, poll.id, opt1.id)
 
-        assert Vote.objects.count() == 1
+        assert Ballot.objects.count() == 1
+        assert BallotSelection.objects.count() == 1
+        assert not Vote.objects.exists()
         assert count == 1  # should remain the same
 
     def test_cannot_vote_on_expired_poll(self):

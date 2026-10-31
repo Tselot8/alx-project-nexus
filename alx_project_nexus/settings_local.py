@@ -12,6 +12,7 @@ from .settings import *  # noqa: E402,F401,F403
 from .settings import (  # noqa: E402
     BASE_DIR,
     _account_email_settings,
+    _ballot_settings,
     _hosts,
     _isolated_database,
     _origins,
@@ -47,3 +48,6 @@ CACHES = {
 # Re-read account email configuration after the isolated dotenv load.
 globals().update(_account_email_settings())
 NEXUS_REFRESH_COOKIE_SECURE = False
+
+# Re-read isolated rollout settings after .env.local.
+globals().update(_ballot_settings())

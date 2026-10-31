@@ -6,6 +6,8 @@ from rest_framework import serializers, generics, permissions
 from .models import Poll, Option
 from . import management
 from .policy import can_view_results
+from .services import get_poll
+from .ledger import snapshot
 
 
 class RejectProtectedFields:
@@ -44,11 +46,19 @@ class OptionSerializer(RejectProtectedFields, serializers.ModelSerializer):
         data = super().to_representation(instance)
         request = self.context.get("request")
         user = request.user if request else None
-        policy = self.context.setdefault("_results_policy", {})
-        if instance.poll_id not in policy:
-            policy[instance.poll_id] = can_view_results(user, instance.poll)
-        if not policy[instance.poll_id]:
-            data["votes_count"] = None
+        results = self.context.setdefault("_results_counts", {})
+        if instance.poll_id not in results:
+            with transaction.atomic():
+                poll = get_poll(user, instance.poll_id, for_update=True)
+                results[poll.pk] = (
+                    snapshot(poll).counts
+                    if can_view_results(user, poll)
+                    else None
+                )
+        counts = results[instance.poll_id]
+        data["votes_count"] = (
+            counts[instance.pk] if counts is not None else None
+        )
         return data
 
     def create(self, validated_data):

@@ -1,4 +1,4 @@
-"""Legacy compatibility under the E lifecycle safeguards."""
+"""Legacy compatibility after the F ballot write-path activation."""
 
 from django.contrib import admin
 from django.test import RequestFactory, TestCase
@@ -81,20 +81,22 @@ class SchemaCompatibilityTests(SecurityFixtures, TestCase):
         for name in METADATA:
             self.assertFalse(Poll._meta.get_field(name).editable)
 
-    def test_legacy_vote_and_public_results_remain_vote_authoritative(self):
+    def test_legacy_vote_and_public_results_use_ballots(self):
         option = self.options[self.public.pk][0]
         response = self.client_for(self.other).post(
             reverse("cast-vote", args=[self.public.pk, option.pk])
         )
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(Vote.objects.filter(poll=self.public).count(), 1)
+        self.assertEqual(Ballot.objects.filter(poll=self.public).count(), 1)
+        self.assertFalse(Vote.objects.exists())
         result = self.client.get(
             reverse("poll-results", args=[self.public.pk])
         )
         self.assertEqual(result.status_code, 200)
         self.assertEqual(result.data["total_votes"], 1)
         self.assert_legacy_defaults(self.public, version=2, locked=True)
-        self.assert_empty_new_tables()
+        self.assertEqual(BallotSelection.objects.count(), 1)
+        self.assertFalse(PollShareToken.objects.exists())
 
     def test_published_deletion_is_denied_and_private_visibility_preserved(
         self,
@@ -110,14 +112,16 @@ class SchemaCompatibilityTests(SecurityFixtures, TestCase):
             .status_code,
             400,
         )
-        self.assertTrue(Vote.objects.exists())
+        self.assertTrue(Ballot.objects.exists())
+        self.assertFalse(Vote.objects.exists())
         self.assertEqual(
             self.client_for(self.other)
             .get(self.detail(self.private))
             .status_code,
             404,
         )
-        self.assert_empty_new_tables()
+        self.assertEqual(BallotSelection.objects.count(), 1)
+        self.assertFalse(PollShareToken.objects.exists())
 
     def test_draft_storage_can_be_incomplete_without_legacy_field_changes(
         self,

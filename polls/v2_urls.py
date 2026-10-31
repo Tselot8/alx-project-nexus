@@ -4,6 +4,12 @@ from . import v2_views as views
 
 app_name = "polls_v2"
 urlpatterns = [
+    path(
+        "polls/<uuid:pk>/ballots/", views.BallotView.as_view(), name="ballots"
+    ),
+    path(
+        "polls/<uuid:pk>/results/", views.ResultsView.as_view(), name="results"
+    ),
     path("polls/", views.PollListView.as_view(), name="list"),
     path("polls/mine/", views.MyPollsView.as_view(), name="mine"),
     path("polls/<uuid:pk>/", views.PollDetailView.as_view(), name="detail"),

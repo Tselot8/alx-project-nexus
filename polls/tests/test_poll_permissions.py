@@ -9,7 +9,14 @@ from rest_framework.test import APIClient
 from rest_framework_simplejwt.tokens import RefreshToken
 
 from accounts.models import User
-from polls.models import AuditLog, Option, Poll, Vote
+from polls.models import (
+    AuditLog,
+    Ballot,
+    BallotSelection,
+    Option,
+    Poll,
+    Vote,
+)
 
 
 class SecurityFixtures:
@@ -85,6 +92,10 @@ class SecurityFixtures:
             "polls": list(Poll.objects.order_by("pk").values()),
             "options": list(Option.objects.order_by("pk").values()),
             "votes": list(Vote.objects.order_by("pk").values()),
+            "ballots": list(Ballot.objects.order_by("pk").values()),
+            "selections": list(
+                BallotSelection.objects.order_by("pk").values()
+            ),
             "audit": list(AuditLog.objects.order_by("pk").values()),
         }
 
