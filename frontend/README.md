@@ -252,3 +252,13 @@ policy and no external fonts/assets.
 References: [Vite](https://vite.dev/guide/),
 [React Router](https://reactrouter.com/start/declarative/installation),
 [TanStack Query](https://tanstack.com/query/latest/docs/framework/react/overview).
+
+## Real full-stack verification (I)
+
+From the repository root, run `python -B scripts/verify_fullstack.py` with the
+existing Python environment, local Docker Linux engine and Chrome available.
+The runner performs npm ci and frontend gates in a disposable source copy, then
+starts owned PostgreSQL/Django/Vite resources for real HTTP and browser tests.
+It never uses the production .env or existing developer databases.
+See [integration instructions](../integration/README.md) for prerequisites,
+isolation guarantees, focused reruns, cleanup and release limitations.

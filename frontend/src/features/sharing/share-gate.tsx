@@ -22,7 +22,7 @@ export function ShareGate({ captured }: { captured: CapturedShare }) {
   const [consumed, setConsumed] = useState(false)
   const [initialPath] = useState(location.pathname)
   const incoming = location.hash.startsWith('#share=')
-  const initial = !consumed && captured && location.pathname === initialPath
+  const initial = !consumed && captured !== null && location.pathname === initialPath
   useLayoutEffect(() => {
     if (!incoming && !initial) return
     const controller = new AbortController()
