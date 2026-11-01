@@ -1,9 +1,9 @@
-# Project Nexus frontend — Milestones G, H1 and H2
+# Project Nexus frontend — Milestones G, H1, H2 and H3
 
 React + TypeScript application inside frontend/; Django stays at the repository
 root. Home, public discovery, poll detail, private shared-link reading,
-authentication, creator workflows, private profile editing and password changes
-are functional. Voting and results visualization remain deferred to H3. No fabricated polls or participation statistics are shown.
+authentication, creator workflows, private profile editing, password changes
+and atomic voting with aggregate results are functional. No fabricated polls or participation statistics are shown.
 
 ## Local development
 
@@ -99,8 +99,9 @@ A valid link grants reads only; it does not grant voting permission.
 - Home shows up to three actual records from the newest public list. Cards do
   not infer creator names, vote counts or engagement fields missing from the API.
 - Detail uses the real options, limits, lifecycle, expiration and results-policy
-  fields. Options are read-only text; no voting or results requests are made.
-  Results counts are neither rendered nor inferred. Creator navigation opens
+  fields. Eligible authenticated accounts load their saved ballot before voting.
+  Aggregate results are requested only through the v2 results endpoint; raw detail
+  counters are never rendered or inferred. Creator navigation opens
   the authenticated, owner-only poll management route.
 - Detail query keys include user/session and share revision (never credentials).
   Details revalidate on mount/focus and are removed when unobserved. Changing or
@@ -115,7 +116,7 @@ A valid link grants reads only; it does not grant voting permission.
   clear across identity changes. No private detail data is reused by a new
   identity or a replaced share session. End private access clears the grant.
   Revocation is checked on subsequent requests/focus; previously viewed content
-  cannot be recalled before a server recheck. No background results cache exists.
+  cannot be recalled before a server recheck. Results are rechecked on focus and explicit refresh.
 
 ## Creator and account workflows (H2)
 
@@ -168,6 +169,42 @@ A valid link grants reads only; it does not grant voting permission.
 - Command groups are tied to a session generation. Identity changes cancel
   query data, remount protected forms, and prevent late operations/adoption
   from continuing as another user. Secrets never enter TanStack mutation caches.
+
+## Voting and results (H3)
+
+- GET /api/v2/polls/<id>/ballots/ loads the current account's saved option_ids,
+  submitted flag and submission/update timestamps. POST to the same endpoint sends
+  only {option_ids:[...]} as a complete replacement, never incremental choices.
+  Radio and checkbox controls respect single/multiple mode and selection limits.
+  Existing selections, unsaved changes and server-confirmed success are distinct.
+  Ballots cannot be withdrawn. Closed, archived, expired and draft polls cannot
+  submit; Django remains authoritative if a poll changes during submission.
+- Failed or interrupted writes never produce optimistic counts or automatic vote
+  reposts. An ambiguous response requires reloading the saved ballot before another
+  submission. Changed/missing saved options and cross-tab ballot updates preserve
+  unsaved choices but require a deliberate reload before further editing.
+- The current backend permits private voting only by the authenticated creator.
+  Other share holders have read-only access even when signed in. No share header
+  is sent to ballots, and no legacy voting fallback exists.
+- GET /api/v2/polls/<id>/results/ is the only aggregate source. Server-authorized
+  counts are verified against option identities, totals and percentage denominators.
+  The UI offers responsive horizontal bars plus an accessible numeric table.
+  Percentage of participants is the default; multiple-choice percentages can total
+  more than 100%. Percentage of selections uses all selections as its denominator.
+- After-voting results require participation even after closure. After-closing
+  results hide again on reopening. Creators can always request aggregates. A share
+  credential never proves participation: the server decides results access.
+- Ballot keys include account/session; results keys include account/session/share
+  scope and poll policy context, never credentials. Queries expire when unobserved.
+  Reads are cancelled on identity/share changes; denied aggregate responses retain
+  only count-free states. No old totals are displayed while access is rechecked.
+  Creator mutations purge aggregate caches and invalidate ballot/detail/results.
+  Voting invalidates those same resources after the server responds. Session
+  fences prevent a pending write from continuing under a different account.
+- Backend write-pause and historical-reconciliation errors have explicit unavailable
+  feedback. This frontend does not enable NEXUS_BALLOT_WRITES_ENABLED, backfill data,
+  or switch bridge/ballot authority. Existing F reconciliation/cutover gates must
+  be reviewed operationally before enabling production voting.
 
 ## Dependency security
 

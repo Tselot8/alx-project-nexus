@@ -64,13 +64,15 @@ export function creatorCommands(services: Services) {
   const check = () => { if (generation !== services.session.generation) throw new DOMException('Session changed', 'AbortError') }
   async function write<T>(path: string, method: 'POST' | 'PATCH' | 'DELETE', body: unknown = {}): Promise<T> {
     check()
+    // Clear permission-sensitive aggregates before lifecycle/configuration writes.
+    services.queryClient.removeQueries({ queryKey: ['poll-results'] })
     try {
       const result = await services.api.request<T>(path, { method, body, auth: 'required' })
       check()
       return result
     } finally {
       if (generation === services.session.generation) {
-        for (const key of ['public-polls', 'my-polls', 'poll', 'creator-poll', 'poll-share']) {
+        for (const key of ['public-polls', 'my-polls', 'poll', 'creator-poll', 'poll-share', 'ballot', 'poll-results']) {
           void services.queryClient.invalidateQueries({ queryKey: [key] })
         }
       }

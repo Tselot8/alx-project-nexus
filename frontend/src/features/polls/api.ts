@@ -11,6 +11,8 @@ export const queryKeys = {
   publicPolls: (filters: DiscoveryFilters = {}) => ['public-polls', filters] as const,
   poll: (id: string, scope: string) => ['poll', id, scope] as const,
   myPolls: (userId: string) => ['my-polls', userId] as const,
+  ballot: (id: string, user: string, generation: number) => ['ballot', id, user, generation] as const,
+  results: (id: string, scope: string, context: string) => ['poll-results', id, scope, context] as const,
   categories: ['categories'] as const,
   categoryPage: (page: number) => ['categories', page] as const,
 }

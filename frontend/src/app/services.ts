@@ -16,7 +16,7 @@ export function createServices() {
   })
   const http = new HttpClient()
   const shares = new ShareVault(http, () => {
-    queryClient.removeQueries({ queryKey: ['poll'] })
+    for (const prefix of ['poll', 'poll-results', 'ballot']) queryClient.removeQueries({ queryKey: [prefix] })
   })
   const session = new Session(http, () => {
     // clear() destroys active queries and cancels their signals before removal.

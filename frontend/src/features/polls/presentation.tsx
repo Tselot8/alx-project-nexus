@@ -2,12 +2,15 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router'
 import type { Category, PollSummary } from '../../api/contracts'
 
-export function useNow() {
+export function useNow(deadline?: string | null) {
   const [now, setNow] = useState(Date.now)
   useEffect(() => {
     const timer = window.setInterval(() => setNow(Date.now()), 15_000)
-    return () => window.clearInterval(timer)
-  }, [])
+    const remaining = deadline ? Date.parse(deadline) - Date.now() : NaN
+    const expiry = Number.isFinite(remaining) && remaining < 2_147_483_647
+      ? window.setTimeout(() => setNow(Date.now()), Math.max(0, remaining) + 1) : undefined
+    return () => { window.clearInterval(timer); window.clearTimeout(expiry) }
+  }, [deadline])
   return now
 }
 export function pollState(poll: PollSummary, now = Date.now()) {

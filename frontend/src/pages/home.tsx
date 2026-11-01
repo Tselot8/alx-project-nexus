@@ -17,7 +17,7 @@ export function Home() {
         <p className="hero-description">A place for good questions and thoughtful answers. Discover public polls, bring people together, and make space for every perspective.</p>
         <div className="action-row"><Link to="/polls" className="button button--primary">Browse polls <span aria-hidden="true">↗</span></Link>
           <Link to="/polls/new" className="button button--secondary">Create a poll</Link></div>
-        <p className="supporting-copy">{session.status === 'authenticated' ? 'Welcome back. Find your next good question.' : 'Browse freely. Sign in to take part when voting is available.'}</p>
+        <p className="supporting-copy">{session.status === 'authenticated' ? 'Welcome back. Find your next good question.' : 'Browse freely. Sign in to vote and share your perspective.'}</p>
       </div>
       <Card className="signal-card">
         <span className="pill">A clearer signal</span>
@@ -42,7 +42,7 @@ export function Home() {
       <div className="feature-grid">{[
         ['01', 'Find your curiosity', 'Explore public questions by topic and discover perspectives beyond your own.'],
         ['02', 'Understand the question', 'Read the options, closing date, and results policy before participating.'],
-        ['03', 'Bring people together', 'Create and manage your polls. Participation and results screens are coming in the next release.'],
+        ['03', 'Bring people together', 'Create a poll, share it with others, and explore the results together.'],
       ].map(([number, title, text]) => <Card key={number}><span className="feature-number">{number}</span>
         <h3>{title}</h3><p>{text}</p></Card>)}</div>
     </section>

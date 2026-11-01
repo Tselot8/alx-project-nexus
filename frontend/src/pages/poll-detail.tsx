@@ -7,6 +7,8 @@ import { CategoryLabel, DateLabel, pollState, useNow } from '../features/polls/p
 import { UnavailablePoll } from '../features/sharing/share-gate'
 import { Button, Card, Feedback, Loading } from '../ui/components'
 import { NotFound } from './foundation'
+import { PollVoting } from '../features/participation/voting'
+import { PollResultsPanel } from '../features/participation/results'
 
 export function PollDetailPage() {
   const { id = '' } = useParams()
@@ -17,7 +19,7 @@ export function PollDetailPage() {
   const scope = (authenticated ? snapshot.user.id : snapshot.status) + ':' + session.generation + ':' + shares.scope(id) + ':' + revision
   const detail = usePoll(api, id, scope, authenticated, snapshot.status !== 'restoring')
   const categories = useCategories(api, 1)
-  const now = useNow()
+  const now = useNow(detail.data?.expires_at)
   if (!uuidPattern.test(id)) return <NotFound />
   if (snapshot.status === 'restoring' || detail.isPending) return <Loading label="Loading poll…" />
   if (detail.isError) {
@@ -32,7 +34,6 @@ export function PollDetailPage() {
   const poll = detail.data
   const owner = authenticated && snapshot.user.id === poll.created_by
   const state = pollState(poll, now)
-  const open = poll.status === 'published' && (!poll.expires_at || Date.parse(poll.expires_at) > now)
   const shared = shares.has(id) && !owner
   return <section className="page-section detail-section">
     <Link className="back-link" to="/polls">← Explore polls</Link>
@@ -43,30 +44,13 @@ export function PollDetailPage() {
       <span>Created <DateLabel value={poll.created_at} /></span></div>
     {poll.description && <p className="poll-description">{poll.description}</p>}
     <div className="detail-grid"><div>
-      <Card><h2>Answer options</h2>
-        <p>{poll.voting_mode === 'single' ? 'Single choice · select one option when voting is available.'
-          : 'Multiple choice · ' + (poll.max_selections === null ? 'at least ' + poll.min_selections
-            : poll.min_selections === poll.max_selections ? 'exactly ' + poll.min_selections : poll.min_selections + '–' + poll.max_selections) + ' selections.'}</p>
-        {poll.options.length ? <ol className="option-preview">{poll.options.map(option =>
-          <li key={option.id}><span aria-hidden="true" className={'option-marker ' + (poll.voting_mode === 'multiple' ? 'option-marker--multiple' : '')} />
-            <span>{option.option_text || 'Empty draft option'}</span></li>)}</ol> : <p>No options have been added to this draft.</p>}
-        <p className="metadata">Options are shown for reading. Voting and changing selections will arrive in the participation release.</p>
-      </Card>
-      <div className="participation-notice">
-        {!open ? <Feedback>{poll.status === 'draft' ? 'This draft is visible only to its creator and is not open for voting.'
-          : poll.status === 'archived' ? 'This poll is archived. It is permanently read-only.'
-          : 'Voting is closed. New and updated selections are not accepted.'}</Feedback>
-          : poll.visibility === 'private' && !owner ? <Feedback>This private link provides read-only access. It does not grant voting or editing permission.</Feedback>
-          : !authenticated ? <Feedback>Sign in to participate when voting is available.
-            <Link className="button button--secondary" to={'/login?returnTo=' + encodeURIComponent('/polls/' + id)}>Sign in to participate</Link></Feedback>
-          : <Feedback>You are signed in. Vote submission is coming in the participation release.</Feedback>}
-      </div>
+      <PollVoting poll={poll} now={now} validating={detail.isFetching} />
+      <div className="participation-notice"><PollResultsPanel key={scope + ':' + poll.id} poll={poll} now={now} scope={scope} validating={detail.isFetching} /></div>
     </div><aside aria-label="Poll information">
       <Card><h2>About this poll</h2>
         <dl className="poll-facts"><dt>Closing date</dt><dd>{poll.expires_at ? <DateLabel value={poll.expires_at} /> : 'No scheduled closing date'}</dd>
           <dt>Results policy</dt><dd>{poll.results_visibility === 'immediate' ? 'Immediately'
             : poll.results_visibility === 'after_voting' ? 'After voting · participation remains required after closing' : 'After closing · hidden again if reopened'}</dd></dl>
-        <p className="metadata">Charts and aggregate results are coming in the results release. No vote counts are displayed here.</p>
         {owner && <><p>You own this poll. Open the creator workspace to manage settings and lifecycle.</p>
           <Link to="/my-polls" className="button button--secondary">My polls workspace</Link>
           <Link to={'/polls/' + poll.id + '/manage'} className="button button--primary">Manage this poll</Link></>}

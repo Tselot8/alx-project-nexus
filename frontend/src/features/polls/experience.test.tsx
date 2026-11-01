@@ -11,7 +11,7 @@ import type { PollDetail } from '../../api/contracts'
 import type { CapturedShare } from '../sharing/share-vault'
 import { capturePrivateShare } from '../sharing/share-vault'
 import { filtersFromUrl } from '../../pages/explore'
-import { alice, bob, deferred, failure, json, network, otherPollId, pollId, publicPoll, sessionData } from '../../test/network'
+import { alice, bob, deferred, emptyResults, failure, json, network, otherPollId, pollId, publicPoll, sessionData } from '../../test/network'
 
 const category = { id: '55555555-5555-4555-8555-555555555555', name: 'Community', description: null }
 const token = 's'.repeat(43)
@@ -24,6 +24,7 @@ function backend(extra: (path: string, init: RequestInit) => Response | Promise<
     if (path.endsWith('/refresh/')) return failure(401)
     if (path.startsWith('/api/v2/categories/')) return json(page([category]))
     if (path.startsWith('/api/v2/polls/?') || path === '/api/v2/polls/') return json(page([{ ...publicPoll, category: category.id }]))
+    if (path === '/api/v2/polls/' + pollId + '/results/') return json(emptyResults())
     if (path === '/api/v2/polls/' + pollId + '/') return json({ ...publicPoll, category: category.id })
     return failure(404)
   })
@@ -202,7 +203,7 @@ describe('discovery and home', () => {
 describe('poll detail', () => {
   it.each([
     ['draft', null, 'This draft is visible only'],
-    ['published', null, 'Sign in to participate when voting is available.'],
+    ['published', null, 'Sign in to participate.'],
     ['closed', null, 'Voting is closed.'],
     ['archived', null, 'permanently read-only'],
     ['published', '2001-01-01T00:00:00Z', 'Voting is closed.'],
@@ -218,16 +219,16 @@ describe('poll detail', () => {
     expect(await screen.findByRole('heading', { name: publicPoll.question })).toBeInTheDocument()
     if (status === 'draft') expect(screen.getByText('Created by you')).toBeInTheDocument()
     expect(screen.getByText(message, { exact: false })).toBeInTheDocument()
-    expect(screen.getByText('Morning')).toBeInTheDocument()
-    expect(screen.queryByRole('radio')).not.toBeInTheDocument()
+    expect(within(screen.getByRole('list')).getByText('Morning')).toBeInTheDocument()
+    expect(screen.queryByRole('radio', { name: /Morning/ })).not.toBeInTheDocument()
   })
-  it.each(['immediate', 'after_voting', 'after_closing'] as const)('never fetches or displays counters under %s', async results_visibility => {
+  it.each(['immediate', 'after_voting', 'after_closing'] as const)('ignores raw detail counters and respects results policy %s', async results_visibility => {
     const fetcher = backend(path => path === detailPath ? json({ ...publicPoll, results_visibility,
       options: [{ id: 'option-fixture', option_text: 'Morning', votes_count: 92813 }], total_participants: 76329 }) : undefined)
     app('/polls/' + pollId)
     await screen.findByRole('heading', { name: publicPoll.question })
     expect(document.body.textContent).not.toMatch(/92813|76329/)
-    expect(fetcher.mock.calls.some(([path]) => String(path).includes('/results/'))).toBe(false)
+    expect(fetcher.mock.calls.some(([path]) => String(path).includes('/results/'))).toBe(results_visibility === 'immediate')
     if (results_visibility === 'after_voting') expect(screen.getByText(/participation remains required after closing/)).toBeInTheDocument()
     if (results_visibility === 'after_closing') expect(screen.getByText(/hidden again if reopened/)).toBeInTheDocument()
   })
@@ -316,7 +317,7 @@ describe('private reading and cache isolation', () => {
         expect(new Headers(init.headers).get('X-Poll-Share')).toBe(token)
         return json({ ...publicPoll, visibility: 'private' })
       }
-      expect(new Headers(init.headers).has('X-Poll-Share')).toBe(false)
+      if (path !== detailPath + 'results/') expect(new Headers(init.headers).has('X-Poll-Share')).toBe(false)
       return undefined
     })
     const { services } = app('/polls/' + pollId, createServices(), captured)
@@ -369,7 +370,7 @@ describe('private reading and cache isolation', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Test other poll' }))
     await screen.findByRole('heading', { name: "We couldn't open this poll." })
     for (const [path, init] of fetcher.mock.calls) {
-      if (path !== detailPath) expect(new Headers(init?.headers).has('X-Poll-Share')).toBe(false)
+      if (path !== detailPath && path !== detailPath + 'results/') expect(new Headers(init?.headers).has('X-Poll-Share')).toBe(false)
     }
   })
   it('clears private queries on explicit end-access and offers reopen guidance', async () => {

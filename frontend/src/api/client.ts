@@ -34,7 +34,9 @@ export class ApiClient {
       if (!(error instanceof ApiError) || ![403, 404].includes(error.status)) return
       const grant = this.shares.credential(url, method)
       // A results-policy 403 or missing option is not link revocation.
-      if (grant && url === '/api/v2/polls/' + grant.pollId + '/') this.shares.revoke(grant.pollId)
+      // Results 404 means the poll itself is inaccessible, not a hidden policy.
+      if (grant && (url === '/api/v2/polls/' + grant.pollId + '/'
+        || (error.status === 404 && url === '/api/v2/polls/' + grant.pollId + '/results/'))) this.shares.revoke(grant.pollId)
     }
     checkSession()
     try {
