@@ -21,7 +21,14 @@ class AccountConfigurationTests(unittest.TestCase):
         env.update(
             {
                 "DJANGO_SETTINGS_MODULE": "alx_project_nexus.settings",
-                "DJANGO_SECRET_KEY": "non-secret-configuration-probe",
+                "DJANGO_SECRET_KEY": "non-secret-configuration-probe-" * 4,
+                "DJANGO_ALLOWED_HOSTS": "api.example.invalid",
+                "DJANGO_PROXY_MODE": "direct",
+                "POSTGRES_HOST": "database.example.invalid",
+                "POSTGRES_PORT": "5432",
+                "POSTGRES_DB": "fixture",
+                "POSTGRES_USER": "fixture",
+                "POSTGRES_PASSWORD": "fixture-only",
                 "PYTHONDONTWRITEBYTECODE": "1",
                 "PYTHONPATH": os.getcwd(),
             }
@@ -99,6 +106,7 @@ except ImproperlyConfigured:
                 "NEXUS_PASSWORD_RESET_ENABLED": "true",
                 "NEXUS_PASSWORD_RESET_FRONTEND_ORIGIN": TRUSTED_ORIGIN,
                 "NEXUS_EMAIL_HOST": "mail.example.invalid",
+                "NEXUS_PASSWORD_RESET_APPROVED": "true",
                 "NEXUS_DEFAULT_FROM_EMAIL": "noreply@example.invalid",
             }
         )

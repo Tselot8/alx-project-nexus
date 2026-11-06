@@ -103,3 +103,8 @@ GitHub's published Milestone I run passed its Python 3.12 backend CI:
 [run 41325268424](https://github.com/Tselot8/alx-project-nexus/actions/runs/41325268424).
 Milestone J is local-only and has no new GitHub CI execution until an authorized
 push. No production service or external hosting configuration was accessed.
+
+
+Milestone K preparation and the single current release checklist are in
+[RELEASE.md](RELEASE.md). The counts above remain the historical J verification;
+K verification does not grant deployment, credential rotation or voting cutover.

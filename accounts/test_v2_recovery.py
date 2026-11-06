@@ -1,5 +1,6 @@
 """Recovery delivery uses local capture only; tokens are never API output."""
 
+from smtplib import SMTPException
 from datetime import timedelta
 from urllib.parse import parse_qs, urlsplit
 from unittest.mock import patch
@@ -220,3 +221,24 @@ class RecoveryTests(AccountFixtures, TestCase):
             "/api/token/refresh/", {"refresh": raw}, format="json"
         )
         self.assertEqual(refreshed.status_code, 401)
+
+    def test_smtp_failure_is_generic_silent_and_preserves_account(self):
+        client = self.csrf_client()
+        before = (self.user.password, self.user.auth_version)
+        with patch(
+            "accounts.v2_services.send_mail", side_effect=SMTPException
+        ), self.assertNoLogs("accounts", level="WARNING"):
+            known = client.post(
+                url("password-reset"),
+                {"email": self.user.email},
+                format="json",
+            )
+            unknown = client.post(
+                url("password-reset"),
+                {"email": "missing@example.invalid"},
+                format="json",
+            )
+        self.assertEqual(known.status_code, 202)
+        self.assertEqual(known.data, unknown.data)
+        self.user.refresh_from_db()
+        self.assertEqual(before, (self.user.password, self.user.auth_version))

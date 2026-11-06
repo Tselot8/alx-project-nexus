@@ -2,30 +2,8 @@ from django.contrib import admin
 from .models import Poll, Option, Vote, Category, Comment, AuditLog
 
 
-class OptionInline(admin.TabularInline):
-    model = Option
-    extra = 2  # number of empty option fields shown by default
-
-
-class PollAdmin(admin.ModelAdmin):
-    inlines = [OptionInline]
-    list_display = (
-        'question',
-        'created_by',
-        'category',
-        'is_public',
-        'created_at',
-    )
-    search_fields = ('question',)
-    list_filter = ('is_public', 'category')
-
-
-admin.site.register(Poll, PollAdmin)
-admin.site.register(Option)
-
-
-class HistoricalVoteAdmin(admin.ModelAdmin):
-    """Immutable source evidence: all participation now uses ballots."""
+class ReadOnlyRecordAdmin(admin.ModelAdmin):
+    """No admin mutation bypass around transactional API/domain safeguards."""
 
     actions = None
 
@@ -39,7 +17,27 @@ class HistoricalVoteAdmin(admin.ModelAdmin):
         return False
 
 
+class PollAdmin(ReadOnlyRecordAdmin):
+    list_display = (
+        "question",
+        "created_by",
+        "category",
+        "is_public",
+        "created_at",
+    )
+    search_fields = ("question",)
+    list_filter = ("is_public", "category")
+
+
+admin.site.register(Poll, PollAdmin)
+admin.site.register(Option, ReadOnlyRecordAdmin)
+
+
+class HistoricalVoteAdmin(ReadOnlyRecordAdmin):
+    """Immutable source evidence: all participation now uses ballots."""
+
+
 admin.site.register(Vote, HistoricalVoteAdmin)
 admin.site.register(Category)
 admin.site.register(Comment)
-admin.site.register(AuditLog)
+admin.site.register(AuditLog, ReadOnlyRecordAdmin)

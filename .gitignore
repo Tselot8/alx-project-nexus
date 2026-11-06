@@ -16,6 +16,7 @@ dist/
 venv/
 .env.*
 !.env.example
+!.env.production.example
 .pytest_cache/
 
 # Frontend dependencies, test artifacts, and TypeScript cache

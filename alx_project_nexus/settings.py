@@ -8,6 +8,8 @@ from urllib.parse import urlsplit
 from django.core.exceptions import ImproperlyConfigured
 from dotenv import load_dotenv
 
+from .production import hostname, production_settings, smtp_settings
+
 BASE_DIR = Path(__file__).resolve().parent.parent
 _ISOLATED_MODULES = {
     "alx_project_nexus.settings_local",
@@ -55,6 +57,14 @@ def _origins(name, loopback_only=False):
                 parsed.scheme
                 in ({"http", "https"} if loopback_only else {"https"})
                 and parsed.hostname
+                and (
+                    loopback_only
+                    or hostname(
+                        "[" + parsed.hostname + "]"
+                        if ":" in parsed.hostname
+                        else parsed.hostname
+                    )
+                )
                 and not parsed.username
                 and not parsed.password
                 and not parsed.query
@@ -134,20 +144,7 @@ if _ISOLATED:
     CORS_ALLOWED_ORIGINS = []
     CSRF_TRUSTED_ORIGINS = []
 else:
-    SECRET_KEY = _required("DJANGO_SECRET_KEY")
-    ALLOWED_HOSTS = _hosts(
-        "DJANGO_ALLOWED_HOSTS", "alx-project-nexus-icng.onrender.com"
-    )
-    DATABASES = {
-        "default": {
-            "ENGINE": "django.db.backends.postgresql",
-            "NAME": os.getenv("POSTGRES_DB"),
-            "USER": os.getenv("POSTGRES_USER"),
-            "PASSWORD": os.getenv("POSTGRES_PASSWORD"),
-            "HOST": os.getenv("POSTGRES_HOST"),
-            "PORT": os.getenv("POSTGRES_PORT"),
-        }
-    }
+    globals().update(production_settings(os.environ))
     CORS_ALLOWED_ORIGINS = _origins("DJANGO_CORS_ALLOWED_ORIGINS")
     CSRF_TRUSTED_ORIGINS = _origins("DJANGO_CSRF_TRUSTED_ORIGINS")
 
@@ -274,24 +271,10 @@ def _account_email_settings():
         raise ImproperlyConfigured(
             "Password recovery requires one trusted frontend origin."
         )
-    host = os.getenv("NEXUS_EMAIL_HOST", "")
-    sender = os.getenv("NEXUS_DEFAULT_FROM_EMAIL", "")
-    username = os.getenv("NEXUS_EMAIL_HOST_USER", "")
-    password = os.getenv("NEXUS_EMAIL_HOST_PASSWORD", "")
-    if enabled == "true" and not _ISOLATED:
-        if not host or not sender or (username and not password):
-            raise ImproperlyConfigured(
-                "Password recovery requires explicit SMTP configuration."
-            )
     return {
         "NEXUS_PASSWORD_RESET_ENABLED": enabled == "true",
         "NEXUS_PASSWORD_RESET_ORIGIN": origins[0] if origins else "",
-        "EMAIL_HOST": host,
-        "EMAIL_PORT": 587,
-        "EMAIL_USE_TLS": True,
-        "EMAIL_HOST_USER": username,
-        "EMAIL_HOST_PASSWORD": password,
-        "DEFAULT_FROM_EMAIL": sender,
+        **smtp_settings(os.environ, enabled == "true", _ISOLATED),
     }
 
 

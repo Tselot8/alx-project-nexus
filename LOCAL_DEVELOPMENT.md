@@ -39,6 +39,10 @@ Django imports, and checks the database identity/migration state read-only.
 It refuses pending migrations: backup and an explicit migration decision are
 separate tasks. It never creates a database or applies migrations.
 
+Startup readiness probes Django, Vite and then the API proxy over HTTP; it does
+not depend on colored or buffered startup banners. Failures name the component
+and include bounded, sanitized child logs.
+
 Django runs at `http://127.0.0.1:8000`, Vite at `http://localhost:5173`.
 Use the Vite URL; `/api/` uses its same-origin proxy. Only local settings disable
 HTTPS redirects/secure cookies for local HTTP. Production security is unchanged.
@@ -64,3 +68,8 @@ This is separate from persistent development: it uses fresh tmpfs PostgreSQL at
 settings. It never reads `.env.local`. See [integration instructions](integration/README.md)
 and [QA/release gates](QA.md). The frontend production build is not served by
 Django automatically; production static/deployment decisions remain gated.
+
+
+Production settings and deployment are separate from this local workflow. See
+[RELEASE.md](RELEASE.md) and the sanitized .env.production.example. Do not copy
+production values into .env.local or run production migration/cutover steps here.

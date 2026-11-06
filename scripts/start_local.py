@@ -1,8 +1,10 @@
 """Start the existing local stack from ignored .env.local; never migrate."""
 
 import argparse
+import json
 import os
 from pathlib import Path
+import re
 import shutil
 import socket
 import subprocess
@@ -10,6 +12,7 @@ import sys
 import tempfile
 import time
 import urllib.error
+import urllib.parse
 import urllib.request
 
 from dotenv import dotenv_values
@@ -140,6 +143,131 @@ class NoRedirect(urllib.request.HTTPRedirectHandler):
         return None
 
 
+def check_owned_servers(processes):
+    for name, process in zip(("Django API", "Vite frontend"), processes):
+        code = process.poll()
+        if code is not None:
+            raise LocalSetupError(f"{name} exited (code {code}).")
+
+
+def probe_http(opener, url, kind, timeout=2):
+    """Validate responses, never return credential-bearing bodies/errors."""
+    try:
+        with opener.open(url, timeout=timeout) as response:
+            if response.status != 200:
+                return False, f"HTTP {response.status}"
+            if response.headers.get("Location") is not None:
+                return False, "unexpected redirect"
+            content_type = response.headers.get("Content-Type", "")
+            content_type = content_type.split(";", 1)[0].strip().lower()
+            body = response.read(262145)
+            if len(body) > 262144:
+                return False, "oversized readiness response"
+            if kind == "csrf":
+                if content_type != "application/json":
+                    return False, "expected Django JSON, not an HTML fallback"
+                payload = json.loads(body)
+                valid = (
+                    isinstance(payload, dict)
+                    and set(payload) == {"csrf_token"}
+                    and isinstance(payload["csrf_token"], str)
+                    and re.fullmatch(r"[a-zA-Z0-9]{64}", payload["csrf_token"])
+                )
+            else:
+                valid = (
+                    content_type
+                    in ("text/javascript", "application/javascript")
+                    and b"createHotContext" in body
+                )
+            return bool(valid), (
+                "ready" if valid else "unexpected response shape"
+            )
+    except urllib.error.HTTPError as error:
+        error.close()
+        return False, f"HTTP {error.code}"
+    except (urllib.error.URLError, OSError, TimeoutError):
+        return False, "connection unavailable or timed out"
+    except (ValueError, UnicodeError):
+        return False, "invalid JSON response"
+
+
+def wait_for_servers(processes, api, frontend, timeout=30, opener=None):
+    opener = opener or urllib.request.build_opener(
+        urllib.request.ProxyHandler({}), NoRedirect()
+    )
+    stages = (
+        ("Django API", api + "/api/v2/auth/csrf/", "csrf"),
+        ("Vite frontend", frontend + "/@vite/client", "vite"),
+        (
+            "Vite-to-Django proxy",
+            frontend + "/api/v2/auth/csrf/",
+            "csrf",
+        ),
+    )
+    for name, url, kind in stages:
+        deadline = time.monotonic() + timeout
+        while True:
+            check_owned_servers(processes)
+            ready, reason = probe_http(
+                opener,
+                url,
+                kind,
+                timeout=min(2, max(0.1, deadline - time.monotonic())),
+            )
+            check_owned_servers(processes)
+            if ready:
+                print(name + " HTTP ready.", flush=True)
+                break
+            if time.monotonic() >= deadline:
+                raise LocalSetupError(
+                    f"{name} failed HTTP readiness ({reason})."
+                )
+            time.sleep(min(0.1, max(0, deadline - time.monotonic())))
+
+
+def sanitized_log(log, env):
+    """Bound startup diagnostics and redact credentials and tokens."""
+    log.seek(0, os.SEEK_END)
+    start = max(0, log.tell() - 65536)
+    log.seek(start)
+    raw = log.read()
+    if start:
+        # Discard a possibly truncated first line/credential.
+        raw = raw.partition(b"\n")[2]
+    text = raw.decode("utf-8", errors="replace")
+    text = re.sub(r"\x1b\[[0-?]*[ -/]*[@-~]", "", text)
+    text = "".join(c for c in text if c.isprintable() or c in "\n\t")
+    redactions = set()
+    for key, value in env.items():
+        if value and re.search(r"PASSWORD|SECRET|TOKEN|KEY", key, re.I):
+            redactions.update(
+                (
+                    value,
+                    urllib.parse.quote(value, safe=""),
+                    urllib.parse.quote_plus(value),
+                    json.dumps(value)[1:-1],
+                )
+            )
+    for value in sorted(redactions, key=len, reverse=True):
+        text = text.replace(value, "[redacted]")
+    text = re.sub(r"(?i)https?://[^\s<>\"']+", "[URL omitted]", text)
+    text = re.sub(
+        r"(?i)^.*(?:password|secret|token|authorization|cookie|"
+        r"x-poll-share|database_url).*$",
+        "[sensitive log line omitted]",
+        text,
+        flags=re.M,
+    )
+    text = re.sub(
+        r"[a-zA-Z0-9_-]{20,}\.[a-zA-Z0-9_-]+\.[a-zA-Z0-9_-]+"
+        r"|[a-zA-Z0-9_-]{32,}",
+        "[redacted]",
+        text,
+    )
+    lines = text.splitlines()[-20:]
+    return "\n".join(line[:500] for line in lines) or "(no output captured)"
+
+
 def require_free(port):
     # Check both localhost families; never attach to an existing server.
     for family, host in (
@@ -224,8 +352,9 @@ def main():
         tempfile.TemporaryFile() as vite_log,
     ):
         try:
-            for command, log, cwd in (
+            for name, command, log, cwd in (
                 (
+                    "Django API",
                     [
                         sys.executable,
                         "-B",
@@ -238,6 +367,7 @@ def main():
                     ROOT,
                 ),
                 (
+                    "Vite frontend",
                     [
                         node,
                         str(vite),
@@ -250,50 +380,24 @@ def main():
                     ROOT / "frontend",
                 ),
             ):
-                processes.append(
-                    subprocess.Popen(
-                        command,
-                        cwd=cwd,
-                        env=env,
-                        stdout=log,
-                        stderr=subprocess.STDOUT,
-                        creationflags=getattr(
-                            subprocess, "CREATE_NO_WINDOW", 0
-                        ),
+                try:
+                    processes.append(
+                        subprocess.Popen(
+                            command,
+                            cwd=cwd,
+                            env=env,
+                            stdout=log,
+                            stderr=subprocess.STDOUT,
+                            creationflags=getattr(
+                                subprocess, "CREATE_NO_WINDOW", 0
+                            ),
+                        )
                     )
-                )
-            opener = urllib.request.build_opener(
-                urllib.request.ProxyHandler({}), NoRedirect()
-            )
-            for _ in range(150):
-                if any(process.poll() is not None for process in processes):
+                except OSError as error:
                     raise LocalSetupError(
-                        "An owned server exited; check local ports "
-                        "and dependencies."
-                    )
-                api_log.seek(0)
-                vite_log.seek(0)
-                announced = (
-                    api.encode() in api_log.read()
-                    and frontend.encode() in vite_log.read()
-                )
-                if announced:
-                    try:
-                        with opener.open(
-                            frontend + "/api/v2/auth/csrf/", timeout=2
-                        ) as response:
-                            if (
-                                response.status == 200
-                                and response.headers.get("Location") is None
-                            ):
-                                break
-                    except (urllib.error.URLError, TimeoutError):
-                        pass
-                time.sleep(0.1)
-            else:
-                raise LocalSetupError(
-                    "Owned local servers/proxy failed readiness."
-                )
+                        f"{name} could not start ({type(error).__name__})."
+                    ) from None
+            wait_for_servers(processes, api, frontend)
             print("Frontend: " + frontend + " | API: " + api, flush=True)
             print(
                 "Local HTTP proxy verified; persistent database untouched.",
@@ -305,9 +409,19 @@ def main():
                     "PostgreSQL stays running.",
                     flush=True,
                 )
-                while all(process.poll() is None for process in processes):
+                while True:
+                    check_owned_servers(processes)
                     time.sleep(0.5)
-                raise LocalSetupError("A local server exited.")
+        except LocalSetupError as error:
+            # Stop first so logs are flushed and cannot change while read.
+            stop_owned(processes)
+            diagnostics = "\nDjango output (sanitized):\n" + sanitized_log(
+                api_log, env
+            )
+            diagnostics += "\nVite output (sanitized):\n" + sanitized_log(
+                vite_log, env
+            )
+            raise LocalSetupError(str(error) + diagnostics) from None
         finally:
             stop_owned(processes)
 

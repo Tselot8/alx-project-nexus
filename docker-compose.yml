@@ -4,9 +4,9 @@ services:
     image: postgres:15
     restart: always
     environment:
-      POSTGRES_DB: alx_project_nexus_db
-      POSTGRES_USER: nexus_user
-      POSTGRES_PASSWORD: alxnexus@123!
+      POSTGRES_DB: ${POSTGRES_DB:?Set a dedicated non-production value}
+      POSTGRES_USER: ${POSTGRES_USER:?Set a dedicated non-production value}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set a dedicated non-production value}
     ports:
       - "5432:5432"
     volumes:

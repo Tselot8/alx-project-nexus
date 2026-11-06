@@ -107,7 +107,9 @@ class SettingsIsolationTests(unittest.TestCase):
                 "DJANGO_SETTINGS_MODULE": (
                     "alx_project_nexus.settings" + profile
                 ),
-                "DJANGO_SECRET_KEY": "synthetic-production-key",
+                "DJANGO_SECRET_KEY": "synthetic-production-key-" * 4,
+                "DJANGO_ALLOWED_HOSTS": "api.example.invalid",
+                "DJANGO_PROXY_MODE": "direct",
                 "POSTGRES_HOST": "production.example.invalid",
                 "POSTGRES_PORT": "6543",
                 "POSTGRES_DB": "synthetic_production_database",
@@ -325,7 +327,9 @@ class ConfigurationFileTests(unittest.TestCase):
         path = ROOT / ".github" / "workflows" / "ci-cd.yml"
         source = path.read_text(encoding="utf-8")
         workflow = yaml.load(source, Loader=yaml.BaseLoader)
-        self.assertEqual(set(workflow["jobs"]), {"test"})
+        self.assertEqual(
+            set(workflow["jobs"]), {"test", "frontend", "fullstack"}
+        )
         self.assertEqual(workflow["permissions"], {"contents": "read"})
         for forbidden in (
             "${{ secrets.",
@@ -351,6 +355,33 @@ class ConfigurationFileTests(unittest.TestCase):
         self.assertIn("secrets.token_urlsafe", code)
         self.assertIn('"--publish", "127.0.0.1:5432:5432"', code)
         self.assertIn('"--env", "POSTGRES_PASSWORD"', code)
+
+    def test_release_jobs_are_pinned_test_only_and_have_no_secret_inputs(self):
+        workflow = yaml.load(
+            (ROOT / ".github/workflows/ci-cd.yml").read_text(encoding="utf-8"),
+            Loader=yaml.BaseLoader,
+        )
+        self.assertNotIn("pull_request_target", workflow["on"])
+        self.assertEqual(
+            workflow["jobs"]["fullstack"]["needs"], ["test", "frontend"]
+        )
+        for job in workflow["jobs"].values():
+            for step in job["steps"]:
+                if "uses" in step:
+                    self.assertRegex(
+                        step["uses"], r"^actions/[a-z-]+@[a-f0-9]{40}$"
+                    )
+                if step.get("uses", "").startswith("actions/checkout@"):
+                    self.assertEqual(
+                        step["with"]["persist-credentials"], "false"
+                    )
+        frontend_steps = str(workflow["jobs"]["frontend"]["steps"])
+        self.assertIn("npm ci", frontend_steps)
+        self.assertIn("npm run check", frontend_steps)
+        self.assertIn(
+            "scripts/verify_fullstack.py",
+            str(workflow["jobs"]["fullstack"]["steps"]),
+        )
 
     def test_local_compose_has_separate_loopback_storage(self):
         source = (ROOT / "docker-compose.local.yml").read_text(
