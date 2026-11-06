@@ -14,6 +14,23 @@ export default class SafeReporter implements Reporter {
     else this.failed++
     process.stdout.write(result.status.toUpperCase() + ': ' + test.title + '\n')
     if (result.status !== 'passed' && result.status !== 'skipped') {
+      const stateDiagnostic = test.annotations.find(item => item.type === 'qa-state')
+      if (stateDiagnostic?.description) {
+        const state = JSON.parse(stateDiagnostic.description) as Record<string, unknown>
+        process.stdout.write('  QA state: ' + JSON.stringify({ loading: Number(state.loading), visibleLoading: Number(state.visibleLoading), reviewButtons: Number(state.reviewButtons) }) + '\n')
+      }
+      const failure = result.error?.message || ''
+      process.stdout.write('  Failure category: ' + (failure.includes('strict mode violation') ? 'ambiguous accessible selector' : failure.includes('Timeout') || failure.includes('timeout') ? 'timeout' : 'assertion') + '\n')
+      const overflow = test.annotations.find(item => item.type === 'qa-overflow')
+      if (overflow?.description) {
+        const rows = JSON.parse(overflow.description) as { tag: string; className: string; width: number }[]
+        process.stdout.write('  Overflow components: ' + rows.filter(row => /^[A-Z]+$/.test(row.tag) && /^[a-zA-Z0-9_ -]*$/.test(row.className)).map(row => row.tag + '.' + row.className + ':' + Number(row.width)).join(', ') + '\n')
+      }
+      const rules = test.annotations.find(item => item.type === 'qa-rules')
+      if (rules?.description) {
+        const list = JSON.parse(rules.description) as { id: string; nodes: number }[]
+        process.stdout.write('  Accessibility rules: ' + list.filter(row => /^[a-z-]+$/.test(row.id)).map(row => row.id + ':' + Number(row.nodes)).join(', ') + '\n')
+      }
       const diagnostic = test.annotations.find(annotation => annotation.type === 'share-state')
       if (diagnostic?.description) {
         const state = JSON.parse(diagnostic.description) as Record<string, unknown>

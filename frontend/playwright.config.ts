@@ -22,7 +22,10 @@ export default defineConfig({
     launchOptions: { args: ['--disable-background-networking', '--disable-component-update', '--no-proxy-server'] },
   },
   projects: [
-    { name: 'desktop-chrome', testIgnore: '**/mobile.pw.ts' },
+    { name: 'desktop-chrome', testMatch: '**/journeys.pw.ts' },
+    { name: 'qa-desktop', testMatch: '**/qa.pw.ts' },
+    { name: 'qa-tablet', testMatch: '**/qa.pw.ts', use: { viewport: { width: 768, height: 1024 }, hasTouch: true } },
+    { name: 'qa-mobile', testMatch: '**/qa.pw.ts', use: { viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true } },
     { name: 'mobile-chrome', testMatch: '**/mobile.pw.ts',
       use: { viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true } },
   ],

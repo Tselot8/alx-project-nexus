@@ -55,7 +55,32 @@ def main():
         action="store_true",
         help="Run only real-browser journeys on a fresh stack.",
     )
+    parser.add_argument(
+        "--backend-tests",
+        "--tests",
+        dest="backend_tests",
+        nargs="+",
+        metavar="PATH",
+        help="Run selected backend test paths on a fresh isolated database.",
+    )
     args = parser.parse_args()
+    for target in args.backend_tests or []:
+        path = (ROOT / target.split("::", 1)[0]).resolve()
+        if (
+            not any(
+                path.is_relative_to(ROOT / app)
+                for app in (
+                    "accounts",
+                    "polls",
+                    "alx_project_nexus",
+                    "integration",
+                )
+            )
+            or not path.exists()
+        ):
+            raise RuntimeError(
+                "Backend test paths must exist inside the project."
+            )
     env = clean_environment()
     if any(
         os.getenv(key)
@@ -148,7 +173,9 @@ def main():
     )
     try:
         frontend = ROOT / "frontend"
-        if not (args.integration_only or args.browser_only):
+        if not (
+            args.integration_only or args.browser_only or args.backend_tests
+        ):
             frontend = Path(frontend_workspace.name) / "frontend"
             shutil.copytree(
                 ROOT / "frontend",
@@ -238,16 +265,23 @@ def main():
                 "no:cacheprovider",
                 "--tb=short",
                 "-q",
+                *(args.backend_tests or []),
             )
+        if args.backend_tests:
+            return
         run(
             sys.executable,
             "-B",
             "-m",
             "pytest",
-            (
-                "integration/test_workflows.py::test_real_browser_workflows"
+            *(
+                [
+                    "integration/test_workflows.py"
+                    "::test_real_browser_workflows",
+                    "integration/test_browser_qa.py",
+                ]
                 if args.browser_only
-                else "integration"
+                else ["integration"]
             ),
             "-rP",
             "-p",

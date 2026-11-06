@@ -1,4 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
+import { useSession } from '../../app/providers'
 import type { ApiClient } from '../../api/client'
 import type { Category, Paginated, PollDetail, PollSummary } from '../../api/contracts'
 
@@ -27,12 +28,15 @@ export function discoveryPath(filters: DiscoveryFilters): string {
   return '/api/v2/polls/' + (search.size ? '?' + search.toString() : '')
 }
 export function usePublicPolls(api: ApiClient, filters: DiscoveryFilters = {}) {
+  // Identity cleanup can remove active public queries; rebuild their observers.
+  useSession()
   return useQuery({
     queryKey: queryKeys.publicPolls(filters),
     queryFn: ({ signal }) => api.request<Paginated<PollSummary>>(discoveryPath(filters), { signal }),
   })
 }
 export function useCategories(api: ApiClient, page: number) {
+  useSession()
   return useQuery({
     queryKey: queryKeys.categoryPage(page),
     queryFn: ({ signal }) => api.request<Paginated<Category>>('/api/v2/categories/?page=' + page, { signal }),

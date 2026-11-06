@@ -546,7 +546,15 @@ def test_real_browser_workflows(full_stack):
     _, env = full_stack
     Category.objects.create(name="Browser topics")
     result = subprocess.run(
-        ["node", "node_modules/@playwright/test/cli.js", "test"],
+        [
+            "node",
+            "node_modules/@playwright/test/cli.js",
+            "test",
+            "--project",
+            "desktop-chrome",
+            "--project",
+            "mobile-chrome",
+        ],
         cwd=env["NEXUS_INTEGRATION_FRONTEND_DIR"],
         env=env,
         check=False,

@@ -1,4 +1,4 @@
-# Disposable full-stack verification (Milestone I)
+# Disposable full-stack verification (Milestones I and J)
 
 From the repository root in Windows PowerShell, with the existing Python
 environment activated:
@@ -35,7 +35,9 @@ The default command runs these gates, then cleans up:
    Start an owned Vite process on 127.0.0.1:5181 and proxy /api/ to that server.
    Wait for that Vite process's own startup announcement before probing readiness.
 6. Execute real HTTP journeys, harness guard tests, and real desktop/headless
-   Chrome plus a 390px touch viewport journey. Application responses are not
+   Chrome plus desktop/tablet/mobile QA (1280/768/390px), automated axe WCAG checks,
+   keyboard voting/confirmation/menu checks, enlarged text and reduced motion.
+   Application responses are not
    mocked. Browser traffic is restricted to the local origin.
 7. Stop only the owned Vite process; pytest destroys its test database.
    Remove only the container carrying this invocation's ownership nonce.
@@ -57,8 +59,9 @@ owned PostgreSQL container/test database and a new local Vite process:
 ```powershell
 python -B scripts/verify_fullstack.py --integration-only
 python -B scripts/verify_fullstack.py --browser-only
+python -B scripts/verify_fullstack.py --tests accounts/test_legacy_throttling.py
 python -B scripts/verify_fullstack.py --integration-only --http-only
-python -B -m flake8 --extend-exclude "*/migrations/*" accounts polls alx_project_nexus manage.py scripts/verify_fullstack.py integration
+python -B -m flake8 --extend-exclude "*/migrations/*" accounts polls alx_project_nexus manage.py scripts/verify_fullstack.py scripts/start_local.py integration
 git diff --check
 ```
 
@@ -101,3 +104,19 @@ hosting-trigger and ballot rollout/reconciliation gates remain in force.
 Manual assistive-technology and additional browser-engine reviews remain release
 checks; desktop Chrome with an emulated mobile viewport is not Safari/device
 certification.
+
+## QA-specific checks
+
+The six QA browser journeys audit guest and creator screens at three viewports.
+They include real forms/errors, private links and their unavailable state,
+confirmation focus, native radio keyboard voting, results table, reduced motion,
+200% CSS text scaling, 320-CSS-pixel reflow, and retry after a deliberately aborted transport request.
+The latter aborts a real local request; it does not fabricate application data.
+Axe is the existing locked dependency and checks contrast as well as tagged
+WCAG 2.2 AA rules. This is not a claim of complete WCAG conformance or a
+substitute for NVDA/VoiceOver, real-device and browser zoom testing.
+
+`--tests`/`--backend-tests` accepts only existing paths within the backend or
+integration test directories. It runs selected tests on disposable PostgreSQL,
+skipping the unrelated frontend build. Always run the default command for the
+final complete gate. No persistent database is used for these tests.

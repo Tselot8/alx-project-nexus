@@ -92,25 +92,11 @@ All tests are passing, ensuring reliability and stability.
 ---
 
 ## Getting Started
-1. Clone the repository:  
-   ```
-   git clone https://github.com/Tselot8/alx-project-nexus.git
-   ```
-2. Install dependencies and set up the virtual environment.
 
-3. Apply migrations:
-    ```
-    python manage.py migrate
-    ```
+For the existing Windows development database and Django + React startup, use
+[Local development](LOCAL_DEVELOPMENT.md). The startup command loads ignored
+`.env.local`, checks the existing database read-only, and starts the same-origin
+Vite proxy without applying migrations or changing production settings.
 
-4. Create a superuser:
-    ```
-    python manage.py createsuperuser
-    ```
-5. Run the development server:
-    ```
-    python manage.py runserver
-    ```
-6. Interact with the API endpoints using an authenticated user.
-
-This README provides a complete overview of Project Nexus, focusing on its functionality, architecture, and implementation. It is a ready-to-use backend system for building interactive polling applications. However, Project Nexus is an evolving backend system. Its features, performance, and security will be **constantly refined and improved** to ensure it remains robust, scalable, and aligned with best practices in backend development.
+For repeatable disposable PostgreSQL, HTTP and real-browser verification, see
+[integration instructions](integration/README.md) and [Milestone J QA](QA.md).
