@@ -33,7 +33,8 @@ The default command runs these gates, then cleans up:
 5. Let pytest-django create/migrate a fresh test_nexus_test_i_* database.
    Its live-server fixture binds only 127.0.0.1 on an automatically chosen port.
    Start an owned Vite process on 127.0.0.1:5181 and proxy /api/ to that server.
-   Wait for that Vite process's own startup announcement before probing readiness.
+   Verify Django CSRF JSON, Vite JavaScript and then proxied CSRF over HTTP;
+   startup banners are never used for readiness.
 6. Execute real HTTP journeys, harness guard tests, and real desktop/headless
    Chrome plus desktop/tablet/mobile QA (1280/768/390px), automated axe WCAG checks,
    keyboard voting/confirmation/menu checks, enlarged text and reduced motion.
@@ -120,3 +121,46 @@ substitute for NVDA/VoiceOver, real-device and browser zoom testing.
 integration test directories. It runs selected tests on disposable PostgreSQL,
 skipping the unrelated frontend build. Always run the default command for the
 final complete gate. No persistent database is used for these tests.
+
+
+## CI port reuse regression
+
+The full_stack fixture intentionally remains function-scoped: each test gets a
+fresh transactional database state, cleared cache, browser artifact directory
+and owned Vite process. pytest-django already shares its live Django server.
+There is no need to share browser sessions or widen fixture scope to fix ports.
+
+On Linux, Vite's completed TCP connections can remain in TIME_WAIT after its
+Node process exits. The previous bare bind probe treated that kernel state as
+a live listener, causing subsequent fixture setup to fail on port 5181.
+The runner and fixture now use the same bind-and-listen probe: POSIX
+SO_REUSEADDR permits TIME_WAIT reuse without SO_REUSEPORT; Windows uses
+SO_EXCLUSIVEADDRUSE. An actual conflicting listener still fails closed. No
+process discovery, external process termination or fixed sleep is used.
+
+Teardown and failed readiness both reuse stop_owned, which checks the exact
+Popen handle, waits after terminate, and escalates only that owned child to
+kill on timeout. Browser artifacts are removed after the child is reaped.
+The managed_stack context is the implementation used by full_stack and allows
+regressions to exercise repeated startup/teardown and readiness-failure cleanup.
+
+Regression coverage:
+- Pure stdlib socket tests create actual server-side TIME_WAIT and, on Linux,
+  verify state 06 in /proc/net/tcp. Active loopback/wildcard owners remain
+  protected; repeated rebinds require no timing workaround.
+- Real Vite tests cycle startup/teardown three times, verify the child exited
+  and artifacts disappeared, exercise failed-readiness cleanup while leaving
+  another listener alive, and verify database/cache isolation across tests.
+- Windows wildcard range ownership is reserved explicitly in that regression;
+  Windows otherwise deliberately permits some specific-address binds alongside
+  a non-exclusive wildcard, unlike Linux.
+
+Focused commands (no database for the first; fresh owned PostgreSQL for second):
+
+~~~powershell
+python -B -m unittest alx_project_nexus.tests.test_fullstack_lifecycle -v
+python -B scripts/verify_fullstack.py --tests integration/test_fixture_lifecycle.py
+~~~
+
+Run the complete default verification twice for the final CI-correction gate.
+A local pass does not claim that an unpushed change passed GitHub Actions.

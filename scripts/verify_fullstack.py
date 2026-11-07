@@ -29,13 +29,22 @@ def clean_environment():
 
 
 def require_free(port):
-    with socket.socket() as listener:
-        try:
+    try:
+        with socket.socket() as listener:
+            if os.name == "nt":
+                # Keep Windows probes exclusive; never enable SO_REUSEADDR.
+                listener.setsockopt(
+                    socket.SOL_SOCKET, socket.SO_EXCLUSIVEADDRUSE, 1
+                )
+            else:
+                # Match Node/POSIX TIME_WAIT reuse, not SO_REUSEPORT sharing.
+                listener.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
             listener.bind(("127.0.0.1", port))
-        except OSError:
-            raise RuntimeError(
-                f"Loopback port {port} is occupied; nothing was replaced."
-            ) from None
+            listener.listen(1)
+    except OSError:
+        raise RuntimeError(
+            f"Loopback port {port} is occupied; nothing was replaced."
+        ) from None
 
 
 def main():

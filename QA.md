@@ -177,3 +177,58 @@ failure is resolved. Candidate CI success and owner log review remain gates.
 staging sequence. [RELEASE.md](RELEASE.md) remains the single go/no-go checklist.
 **Preparation is ready for review; real staging/public launch is NO-GO until
 mandatory approvals and release gates are satisfied.**
+
+
+## Focused full-stack CI fixture correction (2026-11-08)
+
+Baseline: clean chore/nexus-readiness at
+92487ad920c922e3aa22d50f7b2a693bddb3ec67. The reported GitHub run
+42408856608 had 4 integration passes and 12 setup errors at the bare bind
+probe on 127.0.0.1:5181. No cloud action, commit or push is part of this fix.
+
+The defect was reproduced with real Linux sockets: after a server was closed,
+its accepted connection remained in /proc/net/tcp state 06 (TIME_WAIT). The old
+bare-bind probe rejected that port even though its listener had been closed.
+It failed both the TIME_WAIT regression and rapid repeated-restart checks.
+The existing direct Node Popen handle was already waited for; fixed delays or
+killing more processes would not correct this socket-state classification.
+
+The runner and fixture now share a bind-and-listen probe using POSIX
+SO_REUSEADDR, never SO_REUSEPORT. Windows uses SO_EXCLUSIVEADDRUSE without
+enabling SO_REUSEADDR. Active conflicting listeners remain rejected.
+full_stack remains function-scoped, preserving transactional DB cleanup,
+cache clearing and fresh browser artifacts. Its managed_stack context is also
+used directly by lifecycle regressions. Success and failed readiness reuse
+the existing stop_owned helper: terminate/wait, then kill/wait only the exact
+owned child on timeout. No unrelated process is located or terminated.
+
+Final evidence:
+- Four database-independent socket tests passed on Windows Python 3.10 and
+  inside an owned, network-disabled Linux Python 3.12 container. They cover
+  actual TIME_WAIT, live loopback/range-owner rejection and five rapid cycles.
+  No tests were skipped. The Linux image/container were cleaned by nonce label.
+- Four real Vite fixture regressions passed against disposable PostgreSQL:
+  three consecutive managed-stack lifecycles, readiness-failure child reaping
+  while an unrelated listener survives, and two per-test DB/cache isolation
+  cases. Successful children exited, artifact directories disappeared and the
+  port was reusable without a fixed sleep.
+- The complete default python -B scripts/verify_fullstack.py command passed
+  TWICE consecutively (exit 0 each), each with a fresh owned PostgreSQL container:
+  330 backend tests / 222 subtests, 271 frontend tests and 20 integration checks,
+  including 10 real Chrome journeys. No tests failed or were skipped.
+- Both runs passed npm ci, ESLint, strict app/E2E TypeScript, production build,
+  Django checks and makemigrations --check --dry-run. Colored output was enabled
+  to retain coverage of banner-independent HTTP readiness.
+- CI-equivalent Python lint, source secret scan (zero findings) and Git
+  whitespace checks passed. Existing drf-yasg deprecation and explicit
+  FORCE_COLOR/NO_COLOR notices remain visible.
+- Both full runs removed only their owned disposable resources and verified
+  the existing Docker container/volume/network inventories were preserved.
+  No persistent local database or .env.local was read, copied or modified.
+- Application authentication/voting, models, migrations, settings, URLs,
+  frontend source, deployment configuration and tracked static assets were
+  unchanged. Existing assertions remain intact.
+
+GitHub Actions has NOT run this uncommitted correction. The old failed run is
+not cleared by local results; a separately approved commit/push and successful
+CI rerun are still needed before resuming the staging gate.

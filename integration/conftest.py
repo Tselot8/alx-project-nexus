@@ -1,10 +1,10 @@
 """Opt-in live tests; default backend CI needs no Node or browser tools."""
 
+from contextlib import contextmanager
 import os
 from pathlib import Path
 import re
 import shutil
-import socket
 import subprocess
 import tempfile
 
@@ -14,8 +14,13 @@ from django.core.cache import cache
 from django.db import connection
 
 from scripts.start_local import (
-    LocalSetupError, sanitized_log, wait_for_servers,
+    LocalSetupError,
+    sanitized_log,
+    stop_owned,
+    wait_for_servers,
 )
+
+from scripts.verify_fullstack import require_free
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -40,14 +45,13 @@ def pytest_configure():
         )
 
 
-@pytest.fixture
-def full_stack(live_server):
+@contextmanager
+def managed_stack(live_server):
     expected = "test_nexus_test_i_" + os.environ["NEXUS_INTEGRATION_RUN"]
     assert (
         connection.settings_dict["NAME"] == expected
     ), "Refusing a non-test database."
-    with socket.socket() as probe:
-        probe.bind(("127.0.0.1", 5181))
+    require_free(5181)
     cache.clear()
     env = os.environ.copy()
     env["NEXUS_PROXY_TARGET"] = live_server.url
@@ -88,13 +92,15 @@ def full_stack(live_server):
 
                 try:
                     wait_for_servers(
-                        [LiveDjango(), server], live_server.url, base,
+                        [LiveDjango(), server],
+                        live_server.url,
+                        base,
                     )
                 except LocalSetupError as error:
-                    server.terminate()
-                    server.wait(timeout=10)
+                    stop_owned([server])
                     pytest.fail(
-                        str(error) + "\nVite (sanitized):\n"
+                        str(error)
+                        + "\nVite (sanitized):\n"
                         + sanitized_log(vite_log, env)
                     )
                 yield base, {
@@ -103,9 +109,11 @@ def full_stack(live_server):
                     "NEXUS_E2E_ARTIFACTS": artifacts,
                 }
             finally:
-                server.terminate()
-                try:
-                    server.wait(timeout=10)
-                except subprocess.TimeoutExpired:
-                    server.kill()
-                    server.wait(timeout=10)
+                stop_owned([server])
+
+
+@pytest.fixture
+def full_stack(live_server):
+    # Keep transactional DB/cache/browser artifacts isolated for every test.
+    with managed_stack(live_server) as stack:
+        yield stack
