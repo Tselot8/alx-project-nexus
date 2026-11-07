@@ -26,3 +26,6 @@ venv/
 /frontend/test-results/
 *.tsbuildinfo
 .env.local
+
+# Collected production artifact (tracked legacy staticfiles stay untouched)
+/static-build/

@@ -7,12 +7,12 @@ No command in this document was executed against production during Milestone K.
 
 ## Baseline and retained work
 
-Milestone J is 603c1fce42e820a6e8e7fe3605950c5b7ed69477 on
-chore/nexus-readiness. At K inspection, both GitHub development HEAD and local
-HEAD matched that commit. The separately verified startup-readiness correction
-in scripts/start_local.py and its test module was staged but NOT committed or
-published. K preserves those index entries and leaves its own work uncommitted.
-Production main was inspected by remote hash only; it was not changed.
+Milestone K is 853ab4f15b8e163f2f0fcce312cc4eafed322a28 on
+chore/nexus-readiness. At L inspection, local HEAD, upstream tracking and the
+read-only GitHub branch hash matched K; working tree and staging were clean.
+The startup-readiness correction is included in K (committed and published).
+L preserves that history, leaves its own changes uncommitted, and never changes
+main or its legacy deployed service.
 Before a release, record the approved full commit, artifact hashes and actual
 running application/migration versions. Do not assume production matches Git.
 
@@ -41,12 +41,13 @@ backend/concurrency tests, npm ci/lint/types/unit/build, real HTTP, Chrome and
 axe desktop/tablet/mobile journeys. Existing development data is not used.
 See integration/README.md for isolated reruns and cleanup safeguards.
 
-GitHub Actions has three test-only jobs: backend/configuration/secret checks,
+K GitHub Actions has three test-only jobs: backend/configuration/secret checks,
 frontend lint/tests/types/build, then disposable full-stack/browser checks.
 Actions are pinned to verified full commit hashes and checkout credentials are
 not persisted. There are no deploy steps, production migrations, repository
 secrets or pull_request_target workflows. The changed workflow must pass on
 GitHub's Python 3.12/Linux/Chrome runner after a separately approved push.
+L adds a fourth test-only local Docker artifact job. No workflow deploys.
 Configure required status checks/branch protection separately with owner approval.
 
 Final local K verification used a separate Python 3.10.9 environment with the
@@ -316,7 +317,10 @@ live hosting assertions. Stage the same artifact/environment first. Review HTTP
 redirects, TLS/proxy trust, hosts/origins, cookies, static content, SPA navigation,
 CSP/security headers, database privileges and monitoring. Liveness can GET
 /api/v2/auth/csrf/ without authenticating or writing data; validate JSON shape,
-not HTTP 200 alone. Database readiness is separate operator-only preflight.
+not HTTP 200 alone. L adds /health/live/ (no database) and /health/ready/ (bounded read-only
+database connectivity and migration-plan checks). Neither is migration/cutover approval. The
+comprehensive release_preflight remains separately approved operator evidence.
+See STAGING.md for the combined Gunicorn/WhiteNoise artifact and HTTPS routing.
 
 After an approved deployment, read-only smoke checks include /, /polls, /login,
 admin static CSS, unknown/private resource 404, and no-store response headers.
@@ -334,13 +338,16 @@ operator, date and evidence location. A local pass never authorizes deployment.
 
 | Gate | State | Required evidence / go-no-go rule |
 | --- | --- | --- |
-| Git baseline / startup fix publication status | Verified | Existing two staged startup files preserved; K is uncommitted/unpublished. |
+| Git baseline / startup fix publication status | VERIFIED at L | Startup fix included in committed/published K SHA 853ab4f; clean baseline. |
 | Synthetic production settings, host/proxy/SMTP guards | PASS local | Offline checks and focused regressions; no live credentials. |
 | Current-source secret gate | PASS local | Zero current literal/sensitive-file findings; history remains separate. |
-| Backend, frontend, full-stack and concurrency suites | PASS local | 311 backend / 192 subtests, 271 frontend, 16 integration; no failures/skips. |
+| Backend, frontend, full-stack and concurrency suites | PASS local L | 326 backend / 217 subtests, 271 frontend, 16 integration incl. 10 Chrome journeys; no failures/skips. |
 | Static collection / migration consistency | PASS local | Temporary admin/DRF assets verified; no new schema migrations. |
 | Admin invariant bypass | PASS local | Poll/Option/AuditLog view-only, including superusers, inline and bulk requests. |
-| New GitHub Actions on Python 3.12 / Linux | MANUAL BLOCKER | Separately authorized push and successful three-job run; none triggered here. |
+| GitHub Actions on Python 3.12 / Linux | FAILED K RUN | Backend and frontend passed; full-stack failed. Owner log inspection and a future approved candidate CI run required. |
+| Hosting / no-card eligibility | MANUAL BLOCKER | Provisional Render+Neon, fallback Render+Supabase. See STAGING.md; no signup or resource creation authorized. |
+| L combined artifact / health / CSRF / static | PASS local | Non-root network-disabled Gunicorn, production middleware/static and CSRF; no real staging deployment. |
+| Staging persistence / quotas / cold-start | MANUAL BLOCKER | Approved NEW DB/service, synthetic record survival after restart, limits accepted. |
 | Historical credentials / log exposure | MANUAL BLOCKER | Owner confirms test-only status or completes/retests required revocations. |
 | Dependency advisory / patched runtime | MANUAL BLOCKER | Deploy reviewed patched requirements; audit remaining dependencies at release time. |
 | Backup and disposable restore rehearsal | MANUAL BLOCKER | Approved target, verified restore, RPO/RTO and rollback artifact. |
@@ -356,3 +363,31 @@ manual gates cleared, an explicit choice to keep recovery disabled or approve
 it, and separate approval for migrations, cutover and deployment. Any unknown
 credential state, unconverted/anomalous history, unsafe ingress or missing
 restore proof is NO-GO. K itself performs none of those operator actions.
+
+
+## Milestone L staging preparation
+
+[STAGING.md](STAGING.md) records current hosting research, the provisional
+same-origin architecture/fallback, sanitized environment contract and approval
+sequence. Existing production security, historical-secret rotation, backup,
+migration, reconciliation, accessibility and operator gates above still apply.
+
+K GitHub run 42244485788 concluded failure: backend/frontend succeeded,
+full-stack failed at Verify isolated full stack. Public annotations had no
+details and job-log API required authorization (403). L does not assert a root
+cause. The integration fixture independently had fragile exact-banner readiness;
+it now reuses the verified HTTP probes. A future approved CI run must prove the
+candidate on Linux/Python 3.12. Do not bypass a failed job or push from L.
+
+Provisional staging remains NO-GO until candidate CI and manual hosting/security/
+data gates are cleared. New staging voting writes need their own approval even
+on a fresh database. Production writes/cutover remain untouched. Password
+recovery stays disabled; Render Free blocks standard SMTP ports.
+
+~~~powershell
+# Local network-isolated artifact verification, not cloud deployment.
+python -B scripts/verify_staging.py
+~~~
+
+This adds no migration or seed step to build/start. Database backups/restore and
+reconciliation procedures above remain mandatory, separate operator actions.

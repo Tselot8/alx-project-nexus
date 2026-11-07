@@ -1,0 +1,28 @@
+# Allowlist prevents credentials, Git history, data and local artifacts entering
+# any build context. Frontend output is produced in the Node build stage.
+**
+!Dockerfile.staging
+!requirements.txt
+!manage.py
+!gunicorn.conf.py
+!accounts/
+!accounts/**
+!polls/
+!polls/**
+!alx_project_nexus/
+!alx_project_nexus/**
+!scripts/
+!scripts/**
+!frontend/
+!frontend/**
+**/__pycache__/
+**/*.pyc
+**/.env*
+**/node_modules/
+**/dist/
+**/coverage/
+**/test-results/
+**/playwright-report/
+**/*.log
+**/*.sqlite3
+**/*.dump

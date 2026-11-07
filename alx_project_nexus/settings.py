@@ -9,6 +9,7 @@ from django.core.exceptions import ImproperlyConfigured
 from dotenv import load_dotenv
 
 from .production import hostname, production_settings, smtp_settings
+from .deployment import frontend_settings
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 _ISOLATED_MODULES = {
@@ -303,3 +304,47 @@ def _ballot_settings():
 
 
 globals().update(_ballot_settings())
+
+
+# L: opt-in unified artifact; isolated local/test profiles stay on Vite.
+_FRONTEND = frontend_settings(os.environ, BASE_DIR, _ISOLATED)
+NEXUS_SERVE_FRONTEND = _FRONTEND["NEXUS_SERVE_FRONTEND"]
+NEXUS_FRONTEND_DIST = _FRONTEND["NEXUS_FRONTEND_DIST"]
+if not _ISOLATED:
+    if NEXUS_SERVE_FRONTEND:
+        STATIC_ROOT = BASE_DIR / "static-build"
+    MIDDLEWARE.insert(1, "alx_project_nexus.deployment.ArtifactMiddleware")
+    STORAGES = {
+        "default": {"BACKEND": "django.core.files.storage.FileSystemStorage"},
+        "staticfiles": {
+            "BACKEND": (
+                "whitenoise.storage.CompressedManifestStaticFilesStorage"
+            )
+        },
+    }
+    WHITENOISE_ALLOW_ALL_ORIGINS = False
+    WHITENOISE_USE_FINDERS = False
+    WHITENOISE_AUTOREFRESH = False
+    LOGGING = {
+        "version": 1,
+        "disable_existing_loggers": False,
+        "filters": {
+            "safe_server": {
+                "()": "alx_project_nexus.deployment.SafeServerLogFilter",
+            },
+        },
+        "handlers": {
+            "safe_console": {
+                "class": "logging.StreamHandler",
+                "filters": ["safe_server"],
+            },
+        },
+        "root": {"handlers": ["safe_console"], "level": "WARNING"},
+        "loggers": {
+            "django": {
+                "handlers": ["safe_console"],
+                "level": "WARNING",
+                "propagate": False,
+            },
+        },
+    }

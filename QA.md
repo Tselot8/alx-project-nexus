@@ -108,3 +108,72 @@ push. No production service or external hosting configuration was accessed.
 Milestone K preparation and the single current release checklist are in
 [RELEASE.md](RELEASE.md). The counts above remain the historical J verification;
 K verification does not grant deployment, credential rotation or voting cutover.
+
+
+## Milestone L local staging-preparation verification (2026-11-06)
+
+Baseline: clean chore/nexus-readiness at
+853ab4f15b8e163f2f0fcce312cc4eafed322a28, matching the read-only remote
+development hash. K contains the previously staged startup fix. L creates no
+commit/push and does not change main or any cloud service.
+
+### Final executed evidence
+
+- Complete backend: **326 passed, 217 subtests passed**, no failures/skips,
+  against owned tmpfs PostgreSQL 15. Includes prior model/migration,
+  security/concurrency and new artifact/health/HTTPS-cookie regressions.
+- Frontend: **271 passed**; npm ci, ESLint, strict app/E2E TypeScript and
+  production build passed, with zero npm audit findings from that install.
+- Integration: **16 passed**, no skips, including **10 real Chrome journeys**
+  (four participant/creator/session journeys and six desktop/tablet/mobile
+  accessibility/keyboard/reflow cases). Final run used FORCE_COLOR=1 and the
+  shared HTTP probes, without banner detection.
+- Django system check: no issues. makemigrations --check --dry-run: no changes.
+  Full CI-equivalent Python lint plus gunicorn.conf.py lint passed.
+- Offline production settings/deployment checks, temporary static collection
+  and actual built-frontend routing passed with service connections blocked.
+  Secure cookies, valid/missing/untrusted-origin CSRF and no-session 401
+  exercised using production middleware. Real-JWT HTTPS session regression
+  verifies rotation, stable CSRF, current user and logout on the test database.
+- Docker BuildKit artifact built on Python 3.12/Node 22. Network-disabled,
+  unpublished non-root Gunicorn smoke passed: SPA, assets, Django API/CSRF,
+  database-independent liveness and expected unavailable-database 503 readiness.
+  Private-looking malformed request content did not reach server logs.
+  Only nonce-labelled owned containers/image were cleaned.
+- Initial public dependency downloads timed out. Retried with bounded pip
+  timeouts and BuildKit package cache, retaining TLS validation. A Windows
+  subprocess decoding error was fixed by explicit UTF-8 replacement decoding;
+  the final cached artifact check passed without that error. Raw registry/pip
+  output is not printed/stored by verify_staging.py because errors can contain
+  signed download URLs.
+- Current working-tree secret scan: zero findings. Available-history scan:
+  74 metadata findings (41 Compose credential-literal revisions, 30 old CI
+  credential-literal revisions, three CI secret-printing revisions). Repeated
+  revisions are not distinct credentials. Values were not included in reports;
+  no credential was rotated or history rewritten.
+- Git diff --check and cached --check passed. No models, migrations, poll voting
+  services/ledger, frontend source, local Compose, .env.local or tracked static
+  assets were modified. All 197 tracked static assets remain unchanged.
+  No persistent local database was connected to or altered by L.
+
+Existing drf-yasg renderer deprecation remains visible. Deployment checks retain
+HSTS W005/W021, explicitly acknowledged only for the synthetic host-only
+candidate; actual hosting/HSTS review is still mandatory.
+
+### Not executed / still blocked
+
+No cloud staging was created, deployed or tested. Provider signup/card-free
+eligibility, real DNS/HTTPS/proxy/header behavior, remote PostgreSQL TLS/major
+version/persistence, backup/restore proof, SMTP delivery, production voting
+import/cutover and manual assistive-technology/additional-browser checks were
+not performed. Recovery and production ballot writes remain disabled.
+
+K GitHub run 42244485788 completed **failure**: backend/frontend passed, full-stack
+failed; public logs returned 403. The new four-job workflow has not been pushed
+or executed. A local readiness correction is not evidence that the remote
+failure is resolved. Candidate CI success and owner log review remain gates.
+
+[STAGING.md](STAGING.md) contains the provisional hosting comparison and manual
+staging sequence. [RELEASE.md](RELEASE.md) remains the single go/no-go checklist.
+**Preparation is ready for review; real staging/public launch is NO-GO until
+mandatory approvals and release gates are satisfied.**

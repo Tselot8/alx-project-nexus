@@ -7,14 +7,15 @@ import shutil
 import socket
 import subprocess
 import tempfile
-import time
-import urllib.error
-import urllib.request
 
 import pytest
 from django.conf import settings
 from django.core.cache import cache
 from django.db import connection
+
+from scripts.start_local import (
+    LocalSetupError, sanitized_log, wait_for_servers,
+)
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -78,30 +79,23 @@ def full_stack(live_server):
                 creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
             )
             try:
-                opener = urllib.request.build_opener(
-                    urllib.request.ProxyHandler({})
-                )
-                for _ in range(100):
-                    if server.poll() is not None:
-                        pytest.fail(
-                            "Owned Vite exited before readiness; "
-                            "check the local Node installation."
-                        )
-                    vite_log.seek(0)
-                    if base.encode() not in vite_log.read():
-                        time.sleep(0.1)
-                        continue
-                    try:
-                        with opener.open(
-                            base + "/api/v2/auth/csrf/", timeout=1
-                        ) as response:
-                            if response.status == 200:
-                                break
-                    except (urllib.error.URLError, TimeoutError):
-                        time.sleep(0.1)
-                else:
+                # Reuse banner-independent HTTP validation: Django first,
+                # Vite's JS endpoint second, then proxied CSRF JSON.
+                # live_server is owned by pytest, so only Vite is a child here.
+                class LiveDjango:
+                    def poll(self):
+                        return None
+
+                try:
+                    wait_for_servers(
+                        [LiveDjango(), server], live_server.url, base,
+                    )
+                except LocalSetupError as error:
+                    server.terminate()
+                    server.wait(timeout=10)
                     pytest.fail(
-                        "Owned Vite proxy/Django server failed readiness."
+                        str(error) + "\nVite (sanitized):\n"
+                        + sanitized_log(vite_log, env)
                     )
                 yield base, {
                     **env,

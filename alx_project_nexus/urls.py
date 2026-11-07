@@ -24,7 +24,7 @@ from accounts.jwt_views import (
 from rest_framework import permissions
 from drf_yasg.views import get_schema_view
 from drf_yasg import openapi
-from django.views.generic import RedirectView
+from . import deployment
 
 schema_view = get_schema_view(
     openapi.Info(
@@ -38,6 +38,8 @@ schema_view = get_schema_view(
 
 
 urlpatterns = [
+    path("health/live/", deployment.live, name="health-live"),
+    path("health/ready/", deployment.ready, name="health-ready"),
     path("admin/", admin.site.urls),
     path("api/polls/", include("polls.urls")),
     path("api/accounts/", include("accounts.urls")),
@@ -65,5 +67,6 @@ urlpatterns = [
         schema_view.with_ui('redoc', cache_timeout=0),
         name="schema-redoc",
     ),
-    path('', RedirectView.as_view(url='/swagger/', permanent=False)),
+    path("", deployment.landing, name="landing"),
+    re_path(r"^(?P<path>.*)$", deployment.frontend, name="frontend"),
 ]

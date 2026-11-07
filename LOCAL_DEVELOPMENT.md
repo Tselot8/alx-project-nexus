@@ -73,3 +73,18 @@ Django automatically; production static/deployment decisions remain gated.
 Production settings and deployment are separate from this local workflow. See
 [RELEASE.md](RELEASE.md) and the sanitized .env.production.example. Do not copy
 production values into .env.local or run production migration/cutover steps here.
+
+
+## Staging preparation is separate from local development
+
+STAGING.md describes the optional single-origin production artifact. Keep using
+settings_local and the Git-ignored .env.local for development; the staging
+artifact never loads or copies that file. Install the reviewed requirements in
+the selected development/verification environment when needed (WhiteNoise was
+added for production static serving). No local database reset/migration is part
+of staging preparation. static-build is generated/ignored; the 197 tracked legacy
+staticfiles remain untouched. Do not run the legacy root Compose for staging.
+
+The production-artifact check runs only owned, network-disabled local Docker
+resources: python -B scripts/verify_staging.py. It may download public build
+dependencies, but never connects to the persistent PostgreSQL instance.

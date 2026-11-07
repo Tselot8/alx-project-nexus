@@ -328,7 +328,8 @@ class ConfigurationFileTests(unittest.TestCase):
         source = path.read_text(encoding="utf-8")
         workflow = yaml.load(source, Loader=yaml.BaseLoader)
         self.assertEqual(
-            set(workflow["jobs"]), {"test", "frontend", "fullstack"}
+            set(workflow["jobs"]),
+            {"test", "frontend", "fullstack", "staging_artifact"},
         )
         self.assertEqual(workflow["permissions"], {"contents": "read"})
         for forbidden in (
@@ -375,6 +376,14 @@ class ConfigurationFileTests(unittest.TestCase):
                     self.assertEqual(
                         step["with"]["persist-credentials"], "false"
                     )
+        self.assertEqual(
+            workflow["jobs"]["staging_artifact"]["needs"],
+            ["test", "frontend"],
+        )
+        self.assertIn(
+            "scripts/verify_staging.py",
+            str(workflow["jobs"]["staging_artifact"]["steps"]),
+        )
         frontend_steps = str(workflow["jobs"]["frontend"]["steps"])
         self.assertIn("npm ci", frontend_steps)
         self.assertIn("npm run check", frontend_steps)

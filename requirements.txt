@@ -34,3 +34,4 @@ setuptools==80.9.0
 sqlparse==0.5.3
 uritemplate==4.2.0
 wheel==0.45.1
+whitenoise==6.12.0
