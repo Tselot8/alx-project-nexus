@@ -1047,3 +1047,63 @@ runtime-role TLS remain live-environment checks, not inferred from local smoke.
 
 Creation, deployment, migrations, signup/voting/recovery activation and changes
 to main are NOT performed or authorized by publishing this preparation commit.
+
+
+## Authorized final deployment: verify ingress before trusting it
+
+Use ONE Free staging service for both steps, never a second probe service.
+The initial command deliberately serves no Django, authentication or database
+API. It returns only protocol booleans, with no raw headers, hostnames, cookies
+or credentials. This is a diagnostic entry point, not an alternative insecure
+configuration of the application.
+
+For the already approved initial creation, use the normal Docker/repository/
+Free fields above, Auto-Deploy Off and health path /health/live/. Set ONLY:
+
+~~~text
+PORT=10000
+NEXUS_INGRESS_PROBE_ENABLED=true
+NEXUS_REGISTRATION_ENABLED=false
+NEXUS_BALLOT_AUTHORITY=bridge
+NEXUS_BALLOT_WRITES_ENABLED=false
+NEXUS_PASSWORD_RESET_ENABLED=false
+NEXUS_PASSWORD_RESET_APPROVED=false
+~~~
+
+Temporary Docker Command override:
+
+~~~text
+gunicorn -c gunicorn.conf.py scripts.ingress_probe:application
+~~~
+
+Do not enter Neon credentials or the Django signing secret in this diagnostic
+deployment. No proxy-trust attestation or fake allowed hostname is needed.
+After it is Live, record its assigned public HTTPS URL. Use fresh uncached GETs
+to /probe/ over HTTPS, with no header, X-Forwarded-Proto http/https, comma lists,
+and duplicate header lines in both orders. Every HTTPS result must report only
+forwarded_proto_https=true (other protocol flags false), demonstrating that the
+tested client protocol values did not survive the ingress. Plain HTTP requests,
+including a spoofed https header, must be redirected to the SAME HTTPS origin by
+the edge. The probe itself never redirects. Stop on any differing result.
+
+Render's official web-service port-binding documentation states that the app
+port is not directly reachable from the public internet. The Free-service docs
+also rule out receiving private-network traffic. Combine that documented
+network boundary with the actual spoofing observations; do not claim packet-
+level proof of provider internals. No broad port scan or other service probe.
+Sources: https://render.com/docs/web-services#port-binding and
+https://render.com/docs/free#other-limitations.
+
+Only after this evidence passes, set the exact assigned allowed Host and HTTPS
+CSRF origin, trusted proxy mode and the attestation=true; enter the existing
+runtime-only Neon credentials and new signing secret privately. Set
+NEXUS_INGRESS_PROBE_ENABLED=false (or remove it), CLEAR the temporary Docker
+Command override to restore the Dockerfile CMD, and perform the already approved
+configuration redeploy. Keep signup, voting and recovery disabled. Verify the
+final application /probe/ no longer returns diagnostic JSON, both health paths
+return their normal JSON, and no migration/grant/data operation ran at startup.
+
+If an ingress test fails, keep the service credential-free in diagnostic mode
+and stop; never mark headers trusted, disable HTTPS protection or expose the
+application as a workaround. After failure or interruption, reuse this same
+service rather than creating another Free instance.

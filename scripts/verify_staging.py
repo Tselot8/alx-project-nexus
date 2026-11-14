@@ -64,6 +64,7 @@ def main():
     for kind, target in (
         ("container", name),
         ("container", name + "-offline"),
+        ("container", name + "-ingress"),
         ("image", image),
     ):
         if docker(kind, "inspect", target, check=False).returncode == 0:
@@ -227,9 +228,72 @@ with socket.create_connection(("127.0.0.1", 10000), timeout=3) as client:
             "non-root, no OOM. Debian CA bundle loads; remote TLS unverified."
         )
         print("Local non-root Gunicorn artifact and static/API smoke passed.")
+        # This mode must work without Django configuration or DB secrets.
+        docker(
+            "run",
+            "--detach",
+            "--network",
+            "none",
+            "--name",
+            name + "-ingress",
+            "--label",
+            label + "=" + nonce,
+            "--env",
+            "PORT=10000",
+            "--env",
+            "NEXUS_INGRESS_PROBE_ENABLED=true",
+            image,
+            "gunicorn",
+            "-c",
+            "gunicorn.conf.py",
+            "scripts.ingress_probe:application",
+        )
+        ingress_probe = r"""
+import json
+import urllib.error
+import urllib.request
+opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
+for value in (None, "https", "http", "http, https", "https, http"):
+    headers = {} if value is None else {"X-Forwarded-Proto": value}
+    req = urllib.request.Request(
+        "http://127.0.0.1:10000/probe/", headers=headers
+    )
+    with opener.open(req, timeout=3) as response:
+        data = json.load(response)
+        assert data == {"mode": "ingress_probe",
+            "forwarded_proto_https": value == "https",
+            "forwarded_proto_http": value == "http",
+            "forwarded_proto_unexpected": value not in {"https", "http"}}
+        assert response.headers["Cache-Control"] == "private, no-store"
+for path in ("/api/v2/auth/register/", "/health/ready/"):
+    try:
+        opener.open("http://127.0.0.1:10000" + path, timeout=3)
+    except urllib.error.HTTPError as error:
+        assert error.code == 404
+    else:
+        raise AssertionError("Application route reached ingress-only process")
+"""
+        for _ in range(30):
+            tested = docker(
+                "exec",
+                name + "-ingress",
+                "python",
+                "-B",
+                "-c",
+                ingress_probe,
+                check=False,
+            )
+            if tested.returncode == 0:
+                break
+            time.sleep(1)
+        else:
+            raise RuntimeError("Credential-free ingress entry point failed.")
+        print(
+            "Credential-free ingress entry point passed; no Django/DB API."
+        )
         print("No staging environment deployed; database readiness is 503.")
     finally:
-        for target in (name, name + "-offline"):
+        for target in (name, name + "-offline", name + "-ingress"):
             info = docker("container", "inspect", target, check=False)
             if info.returncode == 0:
                 data = json.loads(info.stdout)[0]
