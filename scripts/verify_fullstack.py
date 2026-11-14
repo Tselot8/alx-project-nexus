@@ -47,6 +47,29 @@ def require_free(port):
         ) from None
 
 
+def postgres_runtime(major):
+    """Allowlisted images and their version-specific ephemeral data roots."""
+    if major not in (15, 18):
+        raise ValueError("Only PostgreSQL 15 and 18 are supported.")
+    destination = (
+        "/var/lib/postgresql" if major == 18 else "/var/lib/postgresql/data"
+    )
+    return f"postgres:{major}", destination
+
+
+def validate_database_container(info, destination):
+    """A version change must never create/adopt persistent Docker storage."""
+    bindings = info["HostConfig"]["PortBindings"]["5432/tcp"]
+    if bindings != [{"HostIp": "127.0.0.1", "HostPort": "55434"}]:
+        raise RuntimeError("Unexpected database binding.")
+    if any(mount["Type"] in {"volume", "bind"} for mount in info["Mounts"]):
+        raise RuntimeError(
+            "Unexpected persistent mount; refusing database access."
+        )
+    if set(info["HostConfig"].get("Tmpfs", {})) != {destination}:
+        raise RuntimeError("Unexpected ephemeral database storage root.")
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
@@ -72,7 +95,15 @@ def main():
         metavar="PATH",
         help="Run selected backend test paths on a fresh isolated database.",
     )
+    parser.add_argument(
+        "--postgres-major",
+        type=int,
+        choices=(15, 18),
+        default=15,
+        help="PostgreSQL version (default: 15; explicit 18 rehearsal).",
+    )
     args = parser.parse_args()
+    postgres_image, postgres_data_root = postgres_runtime(args.postgres_major)
     for target in args.backend_tests or []:
         path = (ROOT / target.split("::", 1)[0]).resolve()
         if (
@@ -122,10 +153,10 @@ def main():
     if docker("info", "--format", "{{.OSType}}").stdout.strip() != "linux":
         raise RuntimeError("Docker Desktop's local Linux engine is required.")
     if not docker(
-        "image", "ls", "postgres:15", "--format", "{{.ID}}"
+        "image", "ls", postgres_image, "--format", "{{.ID}}"
     ).stdout.strip():
         raise RuntimeError(
-            "Install postgres:15 explicitly before running. "
+            f"Install {postgres_image} explicitly before running. "
             "No image was pulled."
         )
     for port in (55434, 5181):
@@ -169,7 +200,8 @@ def main():
         subprocess.run(command, cwd=ROOT, env=env, check=True)
 
     print(
-        "Isolated stack: PostgreSQL 15 / 127.0.0.1:55434 / "
+        f"Isolated stack: PostgreSQL {args.postgres_major} / "
+        "127.0.0.1:55434 / "
         "temporary memory storage.",
         flush=True,
     )
@@ -218,14 +250,14 @@ def main():
             "--publish",
             "127.0.0.1:55434:5432",
             "--tmpfs",
-            "/var/lib/postgresql/data:rw",
+            postgres_data_root + ":rw",
             "--env",
             "POSTGRES_DB",
             "--env",
             "POSTGRES_USER",
             "--env",
             "POSTGRES_PASSWORD",
-            "postgres:15",
+            postgres_image,
             check=False,
         )
         if result.returncode:
@@ -234,13 +266,7 @@ def main():
                 "existing resources were not replaced."
             )
         info = json.loads(docker("inspect", container).stdout)[0]
-        bindings = info["HostConfig"]["PortBindings"]["5432/tcp"]
-        if bindings != [{"HostIp": "127.0.0.1", "HostPort": "55434"}]:
-            raise RuntimeError("Unexpected database binding.")
-        if any(mount["Type"] == "volume" for mount in info["Mounts"]):
-            raise RuntimeError(
-                "Unexpected persistent volume; refusing database access."
-            )
+        validate_database_container(info, postgres_data_root)
         for _ in range(60):
             ready = docker(
                 "exec",

@@ -126,6 +126,7 @@ def main():
             if key.startswith(("DJANGO_", "POSTGRES_", "NEXUS_"))
         }
         settings_env["NEXUS_SERVE_FRONTEND"] = "true"
+        settings_env["PORT"] = "10000"
         # Values travel via inherited environment names, not command arguments.
         run_env = {**env, **settings_env}
         args = [
@@ -136,6 +137,12 @@ def main():
             "--detach",
             "--network",
             "none",
+            "--memory",
+            "512000000",
+            "--memory-swap",
+            "512000000",
+            "--cpus",
+            "0.1",
             "--name",
             name,
             "--label",
@@ -152,11 +159,16 @@ def main():
         )
         probe = r"""
 import json
+import ssl
 import urllib.error
 import urllib.request
+context = ssl.create_default_context(
+    cafile="/etc/ssl/certs/ca-certificates.crt"
+)
+assert context.get_ca_certs()
 opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
 def get(path, expected, kind):
-    req = urllib.request.Request("http://127.0.0.1:8000" + path, headers={
+    req = urllib.request.Request("http://127.0.0.1:10000" + path, headers={
         "Host": "api.example.invalid", "X-Forwarded-Proto": "https",
     })
     try:
@@ -175,7 +187,7 @@ get("/polls", 200, "html")
 get("/api/v2/auth/csrf/", 200, "json")
 # Malformed HTTP must not place its private-looking URL in Gunicorn logs.
 import socket
-with socket.create_connection(("127.0.0.1", 8000), timeout=3) as client:
+with socket.create_connection(("127.0.0.1", 10000), timeout=3) as client:
     client.sendall(b"GET /?share=nexus-log-canary HTTP/9.9\r\n\r\n")
     client.recv(1024)
 """
@@ -204,6 +216,16 @@ with socket.create_connection(("127.0.0.1", 8000), timeout=3) as client:
         logs = docker("logs", name)
         if "nexus-log-canary" in logs.stdout + logs.stderr:
             raise RuntimeError("Private-looking URL reached server logs.")
+        info = json.loads(docker("inspect", name).stdout)[0]
+        assert info["Config"]["User"] == "10001:10001"
+        assert info["HostConfig"]["Memory"] == 512000000
+        assert info["HostConfig"]["MemorySwap"] == 512000000
+        assert info["HostConfig"]["NanoCpus"] == 100000000
+        assert not info["State"]["OOMKilled"]
+        print(
+            "Render-size smoke: 512 MB, no extra swap, 0.1 CPU, PORT=10000; "
+            "non-root, no OOM. Debian CA bundle loads; remote TLS unverified."
+        )
         print("Local non-root Gunicorn artifact and static/API smoke passed.")
         print("No staging environment deployed; database readiness is 503.")
     finally:

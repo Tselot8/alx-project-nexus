@@ -164,3 +164,21 @@ python -B scripts/verify_fullstack.py --tests integration/test_fixture_lifecycle
 
 Run the complete default verification twice for the final CI-correction gate.
 A local pass does not claim that an unpushed change passed GitHub Actions.
+
+
+## Explicit PostgreSQL 18 rehearsal
+
+The default remains PostgreSQL 15. With an already available postgres:18 image:
+
+```powershell
+python -B scripts/verify_fullstack.py --postgres-major 18
+```
+
+This creates its own labelled container on 127.0.0.1:55434 and NEVER adopts
+nexus-staging-test-db or its volume. PostgreSQL 18 uses tmpfs at
+/var/lib/postgresql (covering the image's version-specific PGDATA); PostgreSQL
+15 keeps /var/lib/postgresql/data. Effective storage and loopback bindings are
+validated before DB access. Persistent bind/volume mounts are refused. The
+existing nonce, namespace, inventory and cleanup safeguards remain unchanged.
+Record PG15 and PG18 results separately; neither result verifies Neon TLS,
+permissions, backup readiness or cloud migration authorization.

@@ -232,3 +232,119 @@ Final evidence:
 GitHub Actions has NOT run this uncommitted correction. The old failed run is
 not cleared by local results; a separately approved commit/push and successful
 CI rerun are still needed before resuming the staging gate.
+
+
+## Milestone M preparation checkpoint (2026-11-08)
+
+Verified clean pre-M chore/nexus-readiness at
+38d4d942330b64e3a40c286f2ca3d811c24773f5, matching the actual remote hash.
+[GitHub run 42415505625](https://github.com/Tselot8/alx-project-nexus/actions/runs/42415505625)
+passed all four jobs: PostgreSQL backend, frontend lint/tests/types/build,
+full-stack/browser integration, and Docker production artifact.
+The previous CI failures have been superseded for this candidate.
+
+Local M checks:
+- Enhanced verify_staging smoke passed with exact Docker limits:
+  memory=512000000 bytes, swap allowance equal to memory (no extra swap),
+  NanoCpus=100000000 (0.1 CPU), runtime PORT=10000, user=10001:10001 and
+  OOMKilled=false. The network-disabled container served SPA, static/API/CSRF,
+  liveness and expected unavailable-DB 503 readiness. The Debian CA bundle at
+  /etc/ssl/certs/ca-certificates.crt loaded as the non-root user. This does not
+  verify an external Neon certificate or real mixed-load capacity.
+- Offline production configuration/deployment, built frontend/static/API routing
+  and CSRF checks passed with database/network connections blocked.
+- Focused production/security/isolation suite passed: 42 tests, 104 subtests,
+  zero failures/skips, on a fresh owned tmpfs PostgreSQL instance. Django system
+  checks passed and makemigrations --check --dry-run reported no changes.
+- Full backend/frontend/integration suites were not repeated locally for this
+  documentation/test-script change: the exact published candidate has green
+  GitHub CI and the previous two complete local runs are recorded above.
+- CI-equivalent lint, current-source secret scan and Git whitespace checks
+  passed. HSTS W005/W021 remain visible/explicitly reviewed for the synthetic
+  host-only check, and the existing drf-yasg renderer deprecation remains.
+- Only owned temporary resources were removed. No persistent local DB,
+  .env.local, credentials, models, migrations, API logic, frontend source,
+  production settings or live cloud resource was modified/accessed by M.
+
+STAGING.md now restricts the deployment to Render Free + Neon Free only and
+specifies exact dashboard/secret/environment instructions with approval A-D
+boundaries. RELEASE.md remains the single checklist. No code runtime fix was
+required; verify_staging.py alone was strengthened for resource/port/CA checks.
+
+No real staging URL exists or was tested. Account-specific no-card/$0
+confirmation, assigned hostname, ingress header stripping, Neon TLS/role grants,
+approved cloud migration/backup/restore/reconciliation, synthetic voting/restart
+smoke and manual accessibility checks remain. Password recovery and production
+voting defaults stay disabled. No commit, push, merge or deployment occurred.
+
+
+## Local PostgreSQL 18 readiness/recovery rehearsal (2026-11-13)
+
+Baseline chore/nexus-readiness at 38d4d942330b64e3a40c286f2ca3d811c24773f5.
+The four existing M preparation modifications were preserved. No commit/push,
+Neon connection, cloud SQL, Render resource or deployment was performed.
+
+Environment: fresh task-owned temporary venv, Python 3.10.9 (no local 3.12 found),
+Django 5.2.18, psycopg2-binary 2.9.11/libpq 16.9, pytest 9.0.1,
+pytest-django 4.11.1; actual imports, pytest.fixture and distutils shim verified.
+The older temporary environment was not repaired in place. Node 22.14.0/npm
+10.9.2, local Linux Docker client/server 28.1.1. Artifact uses Python 3.12.
+
+Executed results (zero final failures/skips):
+- PostgreSQL 18.7: focused configuration/staging/settings 42 tests + 104 subtests;
+  complete backend 334 tests + 229 subtests, including all 27 concurrency methods.
+  The increase from 330 is four new full-stack image/storage guard regressions.
+- Settings isolation unittest: 15 passed. Django system checks passed;
+  makemigrations --check --dry-run reported no changes.
+- Frontend npm run check: ESLint, strict application/E2E TypeScript, 271 unit tests
+  and production build passed. The default full-stack run also completed a fresh
+  npm ci/check in its temporary frontend copy.
+- PostgreSQL 15.14 default full-stack: 334 backend + 229 subtests, 271 frontend,
+  20 integration checks passed, including 10 real Chrome journeys.
+- Explicit PostgreSQL 18.7 full-stack --postgres-major 18 --integration-only:
+  all 20 real HTTP/browser/accessibility checks passed. This intentionally reused
+  the already checked frontend and did not repeat the separate PG18 backend run.
+- check_release.py with built frontend, audit_secrets.py (zero findings), complete
+  CI-equivalent flake8 and Git whitespace checks passed.
+- verify_staging.py passed actual non-root Gunicorn at 512 MB/no extra swap,
+  0.1 CPU/PORT=10000: SPA/static/API/CSRF, HTTP 200 liveness, expected offline
+  HTTP 503 readiness, CA loading and log-privacy canary. Owned artifacts cleaned.
+
+PostgreSQL 18 migration/recovery evidence:
+- Existing schema tests exercised fresh install, B1 upgrade preservation,
+  reversibility, deferred cross-poll FKs and constraints on disposable test DBs.
+- An additional fresh source applied all 40 migrations. Synthetic fixture:
+  22 tables, 179 constraints (including PG18 NOT NULL), 83 indexes, two submitted
+  ballots (native + imported) and one unchanged historical Vote source row.
+- Container PG18.7 pg_dump custom archive, --no-owner/--no-acl; pg_restore --list
+  inspected, SHA-256 matched container/archive copy. Restore into a separate
+  new local target used --exit-on-error --single-transaction --no-owner --no-acl.
+- Source/restored fingerprints matched every table row, IDs/timestamps, columns,
+  migration history, index definitions and sequence state. Constraints were
+  validated/enforced; all-poll reconciliation and read-only require-cutover-ready
+  preflight passed on source and restored DB, with zero drift/quarantines/history
+  gaps. No real/local developer or Neon data was backed up or copied.
+- Initial recovery comparison found equivalent array/text cast formatting in
+  three deparsed enum CHECKs. The task-only comparator now round-trips those
+  definitions through the same PG18 parser on transaction-local tables; it also
+  verifies actual invalid-value CHECK rejection. All other comparisons remain
+  strict. No application constraint or existing test assertion was weakened.
+- A separate new local DB rehearsed the documented grants: a non-superuser,
+  non-CREATEDB/non-CREATEROLE migrator (not DB owner) applied all migrations;
+  runtime had no role memberships/ownership/schema CREATE. Migration-history
+  SELECT and an application sequence-backed insert worked (insert rolled back).
+  Seven forbidden operations were rejected: schema CREATE, table ALTER, history
+  INSERT/UPDATE/DELETE/TRUNCATE, and privilege alteration of another role.
+
+Isolation/cleanup: only newly nonce-named local roles/databases and owned
+container tmpfs stacks were removed. nexus-staging-test-db stayed running with
+zero restarts and its original volume; unrelated resources were preserved.
+.env.local and the four pre-existing changes were not discarded. Credentials
+were generated/handled only in process memory, not SQL files or Git. Sanitized
+verification logs and the one-off recovery harness are in the task-owned OS
+temporary workspace; they are not an application/deployment entry point.
+
+No polling/authentication/model/schema/settings/deployment behavior changed.
+Existing drf-yasg deprecation and host-scoped HSTS W005/W021 remain visible.
+Local PG18.7 success is not an independently verified Neon PG18.6 migration,
+remote TLS/role guarantee, hosting proxy test or GitHub CI run for this diff.

@@ -16,6 +16,19 @@ main or its legacy deployed service.
 Before a release, record the approved full commit, artifact hashes and actual
 running application/migration versions. Do not assume production matches Git.
 
+## Current Milestone M checkpoint (2026-11-08)
+
+Published candidate: 38d4d942330b64e3a40c286f2ca3d811c24773f5.
+Local branch/upstream/remote matched and the working tree was clean at inspection.
+[CI run 42415505625](https://github.com/Tselot8/alx-project-nexus/actions/runs/42415505625)
+completed success for all four jobs. The earlier failed runs below are historical.
+M restricts hosting to Render Free Web Service plus Neon Free PostgreSQL only;
+no fallback provider, card, paid plan/trial, credits or automatic upgrade.
+[STAGING.md](STAGING.md) contains exact dashboard fields and explicit A-D gates.
+No account, service, database, connection or deployment has been created by M.
+Current local changes are documentation and an enhanced offline artifact check;
+they are uncommitted and do not claim a new GitHub CI execution.
+
 ## Automated preparation gates
 
 ```powershell
@@ -338,15 +351,15 @@ operator, date and evidence location. A local pass never authorizes deployment.
 
 | Gate | State | Required evidence / go-no-go rule |
 | --- | --- | --- |
-| Git baseline / startup fix publication status | VERIFIED at L | Startup fix included in committed/published K SHA 853ab4f; clean baseline. |
+| Git baseline / startup fix publication status | VERIFIED M | Published candidate 38d4d94 includes L and the port-reuse fix; clean pre-M baseline. |
 | Synthetic production settings, host/proxy/SMTP guards | PASS local | Offline checks and focused regressions; no live credentials. |
 | Current-source secret gate | PASS local | Zero current literal/sensitive-file findings; history remains separate. |
 | Backend, frontend, full-stack and concurrency suites | PASS local L | 326 backend / 217 subtests, 271 frontend, 16 integration incl. 10 Chrome journeys; no failures/skips. |
 | Static collection / migration consistency | PASS local | Temporary admin/DRF assets verified; no new schema migrations. |
 | Admin invariant bypass | PASS local | Poll/Option/AuditLog view-only, including superusers, inline and bulk requests. |
-| GitHub Actions on Python 3.12 / Linux | FAILED K RUN | Backend and frontend passed; full-stack failed. Owner log inspection and a future approved candidate CI run required. |
-| Hosting / no-card eligibility | MANUAL BLOCKER | Provisional Render+Neon, fallback Render+Supabase. See STAGING.md; no signup or resource creation authorized. |
-| L combined artifact / health / CSRF / static | PASS local | Non-root network-disabled Gunicorn, production middleware/static and CSRF; no real staging deployment. |
+| GitHub Actions on Python 3.12 / Linux | PASS candidate 38d4d94 | Run 42415505625: backend, frontend, full-stack and Docker artifact all succeeded. Later changes require their own reviewed CI. |
+| Hosting / no-card eligibility | MANUAL CHECK | Render Free + Neon Free ONLY, currently advertised card-free/non-trial; confirm actual $0 forms/account before approved creation. |
+| Combined artifact / health / CSRF / static | PASS local M | Non-root at 512 MB, no extra swap, 0.1 CPU and PORT=10000; offline routing/CSRF/CA checks. No live staging or workload proof. |
 | Staging persistence / quotas / cold-start | MANUAL BLOCKER | Approved NEW DB/service, synthetic record survival after restart, limits accepted. |
 | Historical credentials / log exposure | MANUAL BLOCKER | Owner confirms test-only status or completes/retests required revocations. |
 | Dependency advisory / patched runtime | MANUAL BLOCKER | Deploy reviewed patched requirements; audit remaining dependencies at release time. |
@@ -391,3 +404,53 @@ python -B scripts/verify_staging.py
 
 This adds no migration or seed step to build/start. Database backups/restore and
 reconciliation procedures above remain mandatory, separate operator actions.
+
+
+## Milestone M approval sequence
+
+The historical L no-go was resolved only for candidate CI. All real environment,
+credential, backup/restore, DB identity/migration, role, proxy and write gates
+remain. Approval A in STAGING.md permits a new Free Neon project/database only.
+Approval B separately permits identified staging connections/migrations/grants/
+restore testing; Approval C covers Render account connection, Free service
+creation AND initial deployment. Approval D covers synthetic staging writes,
+voting activation and restart/persistence smoke. No step implies the next one.
+
+Use DB-independent /health/live/ for the Render platform check to avoid ongoing
+Neon wake-ups; manually verify /health/ready/ after approved migrations.
+Render can count a 3xx as healthy, so external verification must require actual
+HTTPS 200 JSON without redirects. Never weaken HTTPS or proxy attestation.
+
+Management owner credentials must not be mistaken for a restricted runtime role:
+Neon console-created roles are elevated. Review grants before public service
+deployment. No hardcoded actual hostname is added: populate exact allowed Host/
+HTTPS origin only after it is assigned, and attest proxy stripping only on
+provider evidence/verification. No wildcard or fake-domain fallback.
+
+This checkpoint is GO for reviewing manual Free account/project setup only.
+It is NO-GO for unapproved deployment, migration, voting or public launch.
+
+
+## Local PG18 rehearsal checkpoint (2026-11-13)
+
+QA.md records fresh local evidence: backend 334 + 229 subtests on PG18.7,
+27 concurrency methods, frontend 271, full default PG15 gate and 20 live
+integration checks on each PG15/PG18, production artifact smoke, migration
+upgrade/reversal tests, synthetic dump/restore and restricted-role rehearsal.
+The full-stack runner retains PG15 as default and adds explicit --postgres-major
+18 with version-correct tmpfs storage and unchanged ownership/isolation gates.
+
+Local migration/recovery prerequisites PASS. Existing Neon migrator/runtime
+provisioning is owner-confirmed; do not rerun their CREATE/RESET instructions.
+No Neon connection, migration or deployment was performed. Before actual cloud
+migration, obtain explicit approval for a fresh bounded Neon identity/schema/
+version/TLS preflight and protected baseline backup, review the rehearsed plan,
+and retain a separate migration execution approval. Actual Neon is reported
+18.6; this local rehearsal used 18.7. Do not infer live state from local success.
+
+After future migrations, apply the explicit application DML allowlist as
+migrator, keep django_migrations SELECT-only for runtime, and verify actual web
+role/health behavior. Recovery remains disabled and voting remains bridge/false.
+Hosting proxy/HTTPS/origins, historical credential sign-off, cloud backup/
+recovery evidence, persistence/cold starts, human accessibility and reviewed
+candidate CI/publication remain release gates. No push/commit is authorized.
