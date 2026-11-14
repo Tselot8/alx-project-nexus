@@ -259,6 +259,20 @@ REST_FRAMEWORK["DEFAULT_THROTTLE_RATES"] = {
 }
 
 
+def _registration_settings():
+    enabled = os.getenv(
+        "NEXUS_REGISTRATION_ENABLED", "true" if _ISOLATED else "false"
+    ).lower()
+    if enabled not in {"true", "false"}:
+        raise ImproperlyConfigured(
+            "NEXUS_REGISTRATION_ENABLED must be true or false."
+        )
+    return {"NEXUS_REGISTRATION_ENABLED": enabled == "true"}
+
+
+globals().update(_registration_settings())
+
+
 def _account_email_settings():
     enabled = os.getenv("NEXUS_PASSWORD_RESET_ENABLED", "false").lower()
     if enabled not in {"true", "false"}:

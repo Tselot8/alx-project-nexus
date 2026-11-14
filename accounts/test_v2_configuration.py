@@ -49,6 +49,7 @@ try:
     print(json.dumps({
         "secure": settings.NEXUS_REFRESH_COOKIE_SECURE,
         "enabled": settings.NEXUS_PASSWORD_RESET_ENABLED,
+        "registration": settings.NEXUS_REGISTRATION_ENABLED,
         "origin": settings.NEXUS_PASSWORD_RESET_ORIGIN,
         "cors": settings.CORS_ALLOW_ALL_ORIGINS,
         "credentials": settings.CORS_ALLOW_CREDENTIALS
@@ -71,8 +72,28 @@ except ImproperlyConfigured:
         result = self.probe({"DJANGO_DEBUG": "True"})
         self.assertTrue(result["secure"])
         self.assertFalse(result["enabled"])
+        self.assertFalse(result["registration"])
         self.assertFalse(result["cors"])
         self.assertFalse(result["credentials"])
+
+    def test_registration_has_explicit_environment_activation(self):
+        for value, expected in (("true", True), ("false", False)):
+            with self.subTest(value=value):
+                self.assertEqual(
+                    self.probe({"NEXUS_REGISTRATION_ENABLED": value})[
+                        "registration"
+                    ],
+                    expected,
+                )
+
+    def test_invalid_registration_configuration_fails_closed(self):
+        for value in ("", "yes", "1", "false,true"):
+            with self.subTest(value=value):
+                self.assertTrue(
+                    self.probe({"NEXUS_REGISTRATION_ENABLED": value})[
+                        "rejected"
+                    ]
+                )
 
     def test_enabled_recovery_rejects_missing_origin_or_smtp(self):
         for overrides in (

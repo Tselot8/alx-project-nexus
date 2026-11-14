@@ -12,6 +12,7 @@ from rest_framework.throttling import ScopedRateThrottle
 from rest_framework.views import APIView
 
 from . import v2_services as services
+from .permissions import RegistrationEnabled
 from .v2_serializers import (
     AccountUpdateSerializer,
     LoginSerializer,
@@ -135,6 +136,8 @@ class CsrfView(V2View):
 
 
 class RegistrationView(AnonymousCookieView):
+    permission_classes = [RegistrationEnabled]
+
     def post(self, request):
         serializer = RegistrationSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)

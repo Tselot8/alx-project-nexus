@@ -181,6 +181,16 @@ def verify_serving(client_type):
         ).status_code
         == 401
     )
+    # The initial public staging artifact must reject signup without DB I/O.
+    assert not settings.NEXUS_REGISTRATION_ENABLED
+    for path in ("/api/accounts/register/", "/api/v2/auth/register/"):
+        assert client.post(
+            path,
+            secure=True,
+            HTTP_HOST=host,
+            HTTP_X_CSRFTOKEN=csrf,
+            HTTP_ORIGIN="https://" + host,
+        ).status_code == 503
     assert settings.NEXUS_REFRESH_COOKIE_SECURE
     assert not settings.NEXUS_PASSWORD_RESET_ENABLED
     assert not settings.NEXUS_BALLOT_WRITES_ENABLED

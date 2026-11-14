@@ -1,8 +1,20 @@
 # Project Nexus: Render Free + Neon Free staging guide
 
-**Current checkpoint: Neon resources owner-reported created; restricted-role setup authorized for manual execution. Migrations/deployment NOT approved.**
-Use the final "Neon role setup: authorized owner-operated workflow" section for
-the current next steps; its authorization update supersedes the earlier A gate.
+**Current checkpoint (2026-11-14): Milestone 2B complete; Render creation/deployment NOT approved.**
+The sanitized operator report confirms 40 migrations on Neon PostgreSQL 18.7,
+restricted migrator ownership, explicit grants on 21 application tables,
+SELECT-only migration history, seven rejected runtime operations, no application
+data, and the preserved encrypted baseline. Earlier empty-schema/role-creation
+instructions below are historical: do not recreate roles or rerun migrations.
+This candidate includes the reviewed registration gate; deploy its exact
+published commit only after its own GitHub CI passes. Both legacy and v2 public signup return 503
+registration_disabled while closed. Local/test defaults stay enabled; normal
+staging/production settings default closed independently of DEBUG. A later
+explicitly approved environment change to NEXUS_REGISTRATION_ENABLED=true
+activates signup without code changes; apply/restart configuration only with
+approval. Login and existing-account actions remain available.
+Proxy-header stripping evidence, exact staging Host/origin, Free/$0 account
+confirmation and explicit service-creation/initial-deploy approval remain gates.
 Reviewed 2026-11-08. This guide replaces the earlier provisional hosting choices:
 only Render Free Web Service and Neon Free PostgreSQL are in scope. No fallback
 provider, paid instance, trial, payment card, credits, add-on or auto-upgrade is
@@ -234,10 +246,11 @@ only after approval; it is not a literal configuration value.
 | POSTGRES_HOST | Direct Neon endpoint hostname, no scheme or -pooler |
 | POSTGRES_PORT | 5432 |
 | POSTGRES_DB | nexus_staging |
-| POSTGRES_USER | Approved restricted runtime role |
+| POSTGRES_USER | nexus_staging_runtime ONLY; never owner/migrator |
 | POSTGRES_PASSWORD | That role's generated private password |
 | POSTGRES_SSLMODE | verify-full |
 | POSTGRES_SSLROOTCERT | /etc/ssl/certs/ca-certificates.crt |
+| NEXUS_REGISTRATION_ENABLED | false; enable only with separate approval |
 | NEXUS_BALLOT_AUTHORITY | bridge |
 | NEXUS_BALLOT_WRITES_ENABLED | false |
 | NEXUS_PASSWORD_RESET_ENABLED | false |
@@ -959,3 +972,78 @@ voting/recovery enablement or Git publication. Local parity verifies the propose
 role/grant design, not actual cloud role state. Keep the post-migration explicit
 DML allowlist and migration-history SELECT-only gate. RELEASE.md remains the
 single operator checklist.
+
+
+## Final Render Free handoff (Prompt 2)
+
+Use the existing Docker artifact; no Blueprint, second repository, alternate
+backend directory, new database, startup migration or grant script is needed.
+The Milestone 2B schema and runtime role are already verified. Do not rerun them.
+
+In a Hobby/$0 workspace without a payment method/trial, New > Web Service:
+
+| Dashboard field | Exact selection |
+| --- | --- |
+| GitHub repository | Tselot8/alx-project-nexus |
+| Branch | chore/nexus-readiness; never main |
+| Name | project-nexus-staging, or another distinct available staging name |
+| Region | Match the existing Neon project where Free availability allows |
+| Language / instance | Docker / Free $0 (512 MB, 0.1 CPU) |
+| Root directory | Blank |
+| Dockerfile path / build context | ./Dockerfile.staging / repository root (.) |
+| Build, Docker Command, pre-deploy overrides | Blank; retain the Dockerfile CMD |
+| Auto-Deploy | Off |
+| Health check | /health/live/ |
+| Disks, jobs, extra databases, paid add-ons | None |
+
+Use the Render environment inventory above. Set PORT=10000 explicitly if the
+form needs it; Gunicorn binds 0.0.0.0:$PORT. EXPOSE 8000 is metadata, not a
+runtime binding override. The image is already tested non-root at PORT=10000.
+Keep DJANGO_SETTINGS_MODULE=alx_project_nexus.settings and NEXUS_SERVE_FRONTEND=true.
+
+POSTGRES_USER MUST be nexus_staging_runtime, POSTGRES_DB=nexus_staging,
+POSTGRES_PORT=5432, POSTGRES_SSLMODE=verify-full and
+POSTGRES_SSLROOTCERT=/etc/ssl/certs/ca-certificates.crt. Enter only the existing
+direct host and runtime password in Render's private environment fields. Never
+upload .env.local, an owner/migrator password, a connection URL or the backup.
+Generate a separate Django signing secret privately. Keep signup, ballot writes
+and password recovery false, with bridge authority. A later activation requires
+separate approval; existing account login/settings remain functional.
+
+The exact assigned public hostname determines DJANGO_ALLOWED_HOSTS (bare host)
+and DJANGO_CSRF_TRUSTED_ORIGINS (https://host); leave CORS empty for same origin.
+Do not use a wildcard or guess an assigned hostname. HTTPS redirects and Secure
+session/CSRF/refresh cookies stay enabled. Keep HSTS at its current 0 default
+until actual HTTPS validation and an explicit HSTS choice; no preload/subdomains.
+
+Render documents edge TLS and X-Forwarded-Proto, but the inspected public docs
+do not independently establish its full client-header stripping contract.
+DJANGO_PROXY_MODE=trusted and DJANGO_PROXY_HEADERS_STRIPPED=true require provider
+or operator evidence that inbound protocol headers (including comma-separated
+values) are stripped/overwritten, HTTPS is identified correctly, and callers
+cannot bypass the ingress. Do not set a truthful-attestation flag blindly,
+disable HTTPS redirects, or switch Gunicorn to independently trusting headers.
+Get this confirmation for the final deployment; retain it privately with the
+operator release evidence. No live Render proxy test is claimed here.
+
+Prompt 2 must include explicit approval for Free service creation AND its initial
+deploy. Creating the service triggers that deploy. If the hostname is revealed
+only after creation, approval must also cover the initial fail-closed attempt
+and the subsequent deploy after exact Host/origin configuration. Missing values
+must fail closed. Review the published candidate SHA/green CI before submission.
+GitHub linking, if newly required, needs repository-scoped account authorization.
+Stop if a card, trial, paid plan or unexpected cost is requested.
+
+After approved deployment, perform read-only HTTPS checks of liveness/readiness,
+public discovery/categories, guest account denial, SPA deep-link refresh and
+static MIME/cache/security headers. Require actual 200 JSON for both health
+paths without redirect loops. Render's platform accepts some redirects as
+healthy; that alone is insufficient. Test header spoofing without logging
+credentials/cookie bodies. No account, poll, vote, share issuance, backfill,
+reconciliation write or recovery email belongs to this initial smoke.
+Use /health/live/ for continuous provider probing; check database readiness
+manually to avoid unnecessary Neon wake-ups. Cold-start/capacity and actual
+runtime-role TLS remain live-environment checks, not inferred from local smoke.
+
+Creation, deployment, migrations, signup/voting/recovery activation and changes
+to main are NOT performed or authorized by publishing this preparation commit.

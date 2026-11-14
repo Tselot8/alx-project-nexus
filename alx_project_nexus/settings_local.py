@@ -16,6 +16,7 @@ from .settings import (  # noqa: E402
     _hosts,
     _isolated_database,
     _origins,
+    _registration_settings,
     _required,
 )
 
@@ -45,7 +46,8 @@ CACHES = {
     }
 }
 
-# Re-read account email configuration after the isolated dotenv load.
+# Re-read registration and email configuration after the isolated dotenv load.
+globals().update(_registration_settings())
 globals().update(_account_email_settings())
 NEXUS_REFRESH_COOKIE_SECURE = False
 
