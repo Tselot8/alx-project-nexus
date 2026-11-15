@@ -1107,3 +1107,33 @@ If an ingress test fails, keep the service credential-free in diagnostic mode
 and stop; never mark headers trusted, disable HTTPS protection or expose the
 application as a workaround. After failure or interruption, reuse this same
 service rather than creating another Free instance.
+
+
+## Recovering from a Render Docker Command override failure
+
+The error `Error: 'gunicorn.conf.py alx_project_nexus.wsgi:application'
+doesn't exist` means Gunicorn received the config filename and application
+name together as its `-c` argument. The staging Dockerfile already uses the
+correct JSON exec-form CMD with four separate arguments and no ENTRYPOINT.
+Do not replace it with another dashboard command or shell wrapper.
+
+On the EXISTING project-nexus-staging service, open Settings > Build & Deploy >
+Docker Command > Edit. Remove the entire override and save the field EMPTY.
+This restores Dockerfile.staging's normal Django CMD. Leave the pre-deploy
+command empty. Set NEXUS_INGRESS_PROBE_ENABLED=false; retain the runtime-only
+Neon credentials, exact Host/CSRF origins, verified trusted-proxy settings,
+Free instance, Auto-Deploy Off and /health/live/ health check. Keep registration,
+ballot writes and password recovery disabled. Do not run migrations or grants.
+Deploy the reviewed development-branch commit once; if saving the command
+already starts the correct deployment, do not start a duplicate deployment.
+
+The local artifact verifier checks the built image has no ENTRYPOINT and the
+exact Django CMD, starts it without a command override, and verifies the running
+process argv plus HTTP liveness, fail-closed offline readiness and SPA/API routes.
+A passing offline smoke does not prove live Neon readiness. After Render is
+Live, separately require normal JSON 200 responses from /health/live/ and
+/health/ready/ and repeat the safe HTTPS/security checks. Never create user
+accounts, polls or votes as part of this initial deployment smoke.
+
+Render documents Docker Command as an override of the image CMD:
+https://render.com/docs/docker#building-from-a-dockerfile.

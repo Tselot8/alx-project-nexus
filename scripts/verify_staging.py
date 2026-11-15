@@ -104,6 +104,23 @@ def main():
             # Registry/build errors may embed signed download URLs.
             # Do not print or persist raw Docker/pip output.
             raise RuntimeError("Local artifact build failed.")
+        # A dashboard command override can merge -c and the WSGI target.
+        # Run the image default without a shell or command override.
+        expected_command = [
+            "gunicorn",
+            "-c",
+            "gunicorn.conf.py",
+            "alx_project_nexus.wsgi:application",
+        ]
+        image_config = json.loads(
+            docker(
+                "image", "inspect", "--format", "{{json .Config}}", image
+            ).stdout
+        )
+        if image_config.get("Entrypoint") or (
+            image_config.get("Cmd") != expected_command
+        ):
+            raise RuntimeError("Unexpected image startup command.")
         # Run the actual image's production settings, static and API routing.
         docker(
             "run",
@@ -218,6 +235,9 @@ with socket.create_connection(("127.0.0.1", 10000), timeout=3) as client:
         if "nexus-log-canary" in logs.stdout + logs.stderr:
             raise RuntimeError("Private-looking URL reached server logs.")
         info = json.loads(docker("inspect", name).stdout)[0]
+        assert info["Path"] == expected_command[0]
+        assert info["Args"] == expected_command[1:]
+        print("Image default Django CMD passed with separate argv entries.")
         assert info["Config"]["User"] == "10001:10001"
         assert info["HostConfig"]["Memory"] == 512000000
         assert info["HostConfig"]["MemorySwap"] == 512000000
