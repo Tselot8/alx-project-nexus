@@ -1,20 +1,22 @@
 # Project Nexus: Render Free + Neon Free staging guide
 
-**Current checkpoint (2026-11-14): Milestone 2B complete; Render creation/deployment NOT approved.**
-The sanitized operator report confirms 40 migrations on Neon PostgreSQL 18.7,
-restricted migrator ownership, explicit grants on 21 application tables,
-SELECT-only migration history, seven rejected runtime operations, no application
-data, and the preserved encrypted baseline. Earlier empty-schema/role-creation
-instructions below are historical: do not recreate roles or rerun migrations.
-This candidate includes the reviewed registration gate; deploy its exact
-published commit only after its own GitHub CI passes. Both legacy and v2 public signup return 503
-registration_disabled while closed. Local/test defaults stay enabled; normal
-staging/production settings default closed independently of DEBUG. A later
-explicitly approved environment change to NEXUS_REGISTRATION_ENABLED=true
-activates signup without code changes; apply/restart configuration only with
-approval. Login and existing-account actions remain available.
-Proxy-header stripping evidence, exact staging Host/origin, Free/$0 account
-confirmation and explicit service-creation/initial-deploy approval remain gates.
+**Current checkpoint (2026-11-15): the existing Free service is Live in normal
+Django mode at https://project-nexus-staging.onrender.com, deployed from
+chore/nexus-readiness at ffa259a3feaa8d9ec659dd607488afb01f3f485f.**
+The 44 live checks passed: application/Neon migration readiness, assets/deep
+links, proxy spoof handling, TLS, CSRF/CORS, disabled signup/recovery and guest
+voting rejection. The owner has now approved portfolio activation and the
+runtime-only read-only preflight has passed. Authenticated live writes
+have NOT yet been tested; enable flags only through the checklist below.
+The existing Neon database has 40 migrations and restricted runtime grants;
+do not recreate roles, reset data or rerun migrations. Registration and ballot
+writes remain disabled; password recovery stays disabled. See the recruiter
+activation procedure at the end of this guide. Earlier dated provisioning and
+pre-deployment sections below are retained as historical procedures, not a
+request to repeat completed operations. The actual Render environment and
+billing account are private dashboard state; source inspection cannot attest
+their current values or quota usage.
+
 Reviewed 2026-11-08. This guide replaces the earlier provisional hosting choices:
 only Render Free Web Service and Neon Free PostgreSQL are in scope. No fallback
 provider, paid instance, trial, payment card, credits, add-on or auto-upgrade is
@@ -1137,3 +1139,163 @@ accounts, polls or votes as part of this initial deployment smoke.
 
 Render documents Docker Command as an override of the image CMD:
 https://render.com/docs/docker#building-from-a-dockerfile.
+
+
+## Recruiter-ready portfolio activation (2026-11-15)
+
+### Implemented experience and remaining limitations
+
+The deployed frontend and v2 backend already implement registration/login,
+cookie-backed session restoration/logout, private account settings, poll drafts,
+options, publication, My Polls, public discovery/search/category filters,
+single/multiple complete-set ballots, replacement without withdrawal, aggregate
+results/tables, and close/reopen/archive operations. The live public discovery
+was empty during the 44-check verification; no demo data was fabricated.
+
+Results follow immediate/after-voting/after-closing policies. After-voting stays
+restricted after closure; after-closing relocks on reopening. Public voting
+requires an authenticated active account. Private shares grant scoped reads
+only; non-creators cannot vote on private polls in this release. Reopening a
+private link after a page reload is intentional because credentials are kept
+in memory, not browser storage. Do not advertise private-share voting as
+implemented. Password reset and account deletion/email changes remain deferred;
+use a unique password and the existing signed-in password-change workflow.
+
+The required visitor flows need no new application implementation or schema
+migration. New regression coverage in integration/test_portfolio.py exercises
+registration gates, explicit login, refresh restoration, draft/publication,
+guest discovery, paused legacy/v2 votes, accepted ballot replacement, restricted
+results, configuration locking, logout and re-pausing. It runs against both
+bridge and ballot-only authority on the owned disposable local stack, never
+against this public URL. Existing browser journeys cover the actual React forms.
+
+### One approved live activation window
+
+Preparation/testing is authorized locally; the following live operations need
+explicit owner approval. Do not execute them merely by following this guide.
+Keep the existing Free service/database, branch, Docker default CMD, runtime
+role, verified TLS, proxy trust, exact Host/CSRF origins and secure cookies.
+
+1. Before enabling writes, obtain fresh read-only release evidence through the
+   established private local connection workflow, using the restricted runtime
+   role and verify-full TLS, against ONLY the approved staging database:
+
+   ```powershell
+   python -B manage.py release_preflight --database --require-cutover-ready
+   ```
+
+   Require
+   schema_ready/cutover_ready=true, no pending or unvalidated constraints, no
+   quarantines, unconverted_groups=0 and counter_drift_options=0. This is a
+   whole-database snapshot, not proof inferred from an empty public listing.
+   Stop on any mismatch. Never run migration/role-creation helpers for this step.
+2. Preserve the encrypted baseline and obtain a fresh protected backup before
+   live synthetic activity if the snapshot shows data since the baseline.
+   Existing PostgreSQL 18 backup/restore instructions apply. Never restore over
+   this database, copy local developer data, or repair discrepancies silently.
+3. With approval and preflight passing, change ONLY these two Render values:
+
+   ```text
+   NEXUS_REGISTRATION_ENABLED=true
+   NEXUS_BALLOT_WRITES_ENABLED=true
+   ```
+
+   Keep NEXUS_BALLOT_AUTHORITY=bridge. Both legacy/v2 writes already use the
+   same atomic Ballot writer; bridge results count disjoint cohorts, without
+   double-counting. No bulk backfill or separate cutover is needed for a clean
+   database with no legacy votes. This does NOT claim a global ballot-only
+   cutover. A future change to authority=ballots still requires RELEASE.md's
+   all-poll reconciliation and approval. If historical groups exist, stop and
+   follow that procedure rather than bypassing it.
+4. Keep NEXUS_PASSWORD_RESET_ENABLED=false and
+   NEXUS_PASSWORD_RESET_APPROVED=false. Retain Free/$0, Auto-Deploy Off,
+   /health/live/, and a blank Docker Command/pre-deploy command. Save and deploy
+   the existing reviewed build; no code push or main merge is required to
+   activate these runtime flags. Startup must never migrate, grant or seed.
+5. With explicit synthetic-data approval, use normal UI/API registration for
+   two non-staff test accounts with unique private random passwords, then test
+   login/reload, draft/options/publish, guest discovery, a second-account vote,
+   complete replacement, policy-correct results and logout/session restoration.
+   Test missing CSRF and private/ownership denials; do not relax them to pass.
+   Confirm exactly one participant after replacement. Polls/accounts are real
+   persistent synthetic records: label them as demonstration data and record
+   their identifiers privately for review. Do not share passwords or add a
+   public demo administrator. Account deletion is unavailable; do not promise
+   automatic cleanup or issue direct SQL deletes. Close/archive completed QA
+   polls through the creator workflow, rather than deleting published records.
+6. Check persistence through one approved configuration restart/cold start;
+   verify existing synthetic polls/results survive. Recheck health, secure
+   cookies, CSRF and read-only whole-database release evidence. Only then link
+   this app from the portfolio as publicly usable. A passing local browser
+   rehearsal is not a passing live write test.
+
+On a verification/security failure, pause ballot writes first and close signup
+through the same two flags=false. Preserve accounts, polls, ballots, audits and
+backups; investigate without reverting to an old independent Vote writer.
+Pausing signup/voting does not revoke existing login sessions or erase data.
+Do not rotate signing keys, repair data or downgrade code automatically.
+
+### Small, optional demo collection (requires live-data approval)
+
+Create these through a normal non-staff creator account after activation.
+Use public visibility, no expiration, no category unless one already exists,
+and a description such as "Portfolio demonstration; counts reflect actual
+submissions, including clearly identified verification accounts." Do not
+invent participants, bulk ballots or testimonials.
+
+| Question | Options | Mode / results / state |
+| --- | --- | --- |
+| Which part of a full-stack project would you explore first? | User experience; API design; Security; Data integrity | Single / immediate / published |
+| Which Nexus features would you like to try? | Create a poll; Update a ballot; Explore results; Manage private links | Multiple, min 1 max 2 / after_voting / published |
+| Which format helps you understand a project? | A working demo; Source code; An architecture walkthrough | Single / after_closing / explicitly closed |
+
+Zero-vote results are honest and supported. Keep the first two polls open and
+use separate QA polls for irreversible archive tests. Private-link QA uses a
+separate private poll; never put its token in the documentation or portfolio.
+
+### Abuse, privacy and Free-tier operating limits
+
+Preserve existing password validators, active-user checks, JWT rotation/version
+revocation, ownership/visibility rules, immutable archives, first-vote locks,
+strict input bounds, CSRF, and 429/Retry-After behavior. Existing budgets are
+10 login requests/minute, 30 auth requests/minute and 120 v2 account/poll
+requests/minute per actual connection address. Recovery's 5/hour scope remains
+disabled. Legacy authentication shares the auth budgets. Do not assume every
+legacy poll route has a v2 throttle. There is no email verification, CAPTCHA,
+per-account poll quota or distributed hard abuse ceiling. Do not add paid
+infrastructure or weaken limits/trust arbitrary X-Forwarded-For to avoid 429s.
+Render proxy/NAT peers can share a budget; the in-memory budget resets on worker
+restart. This is a low-traffic portfolio demonstration, not an SLA-backed or
+abuse-resistant production service. Review request/usage metadata without
+credentials, bodies, voting identities or private links; pause writes if spam
+or resource exhaustion appears. Never publish administrator credentials.
+
+Provider docs reviewed 2026-11-15: Render Free sleeps after 15 idle minutes and
+may take about a minute to wake. It has 750 shared free instance-hours/month,
+plus bandwidth/build limits. With no payment method, exhausted included usage
+can suspend service/builds; do not attach a card, upgrade or add uptime pings.
+Neon Free currently lists 100 CU-hours/project, 1 GB database storage/project,
+5 GB public transfer/project and five-minute idle scale-to-zero. Account quota
+usage is unverified here: check both dashboards and keep Free selected with
+no paid feature/upgrade. Persistent data belongs in Neon, not Render's disk.
+Keep protected independent backups; free restore history is not a substitute.
+Sources: https://render.com/docs/free and
+https://neon.com/docs/introduction/plans.
+
+
+### Activation preflight evidence (2026-11-15)
+
+The owner-operated private runtime-only helper passed against the approved Neon
+staging target at application baseline ffa259a. Its sanitized local report records
+verify-full TLS, 22 runtime-grant tables verified, 40 applied migrations,
+schema_ready/cutover_ready=true, zero quarantines/unconverted groups/counter
+drift, and zero polls, legacy votes or ballots. All other application/session
+models were empty. The encrypted restore-tested baseline remained intact before
+and after. No remote write, credential persistence or feature activation
+occurred. The full report remains outside Git in the task's temporary directory;
+no endpoint, password or connection string belongs in this evidence.
+
+The owner has explicitly approved the existing-service two-flag activation and
+creation of only two labelled synthetic accounts and the three planned public
+demo polls. Keep all other gates unchanged. Live workflow and persistence results
+are still pending and must be reported separately from local rehearsal evidence.

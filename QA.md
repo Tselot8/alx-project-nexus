@@ -348,3 +348,66 @@ No polling/authentication/model/schema/settings/deployment behavior changed.
 Existing drf-yasg deprecation and host-scoped HSTS W005/W021 remain visible.
 Local PG18.7 success is not an independently verified Neon PG18.6 migration,
 remote TLS/role guarantee, hosting proxy test or GitHub CI run for this diff.
+
+
+## Recruiter activation rehearsal (2026-11-15)
+
+Baseline: chore/nexus-readiness at ffa259a; initial worktree/index clean.
+The prior 44-check LIVE read-only/rejected-request verification is preserved;
+no live application data or feature settings changed in this follow-up.
+
+Preparation changes: add integration/test_portfolio.py (two parametrized real
+HTTP journeys); update STAGING.md's obsolete checkpoint plus exact activation,
+demo-data and Free-tier/abuse limitations; cross-reference them in RELEASE.md.
+No application code, settings defaults, permissions, models, migrations,
+frontend implementation, dependencies or infrastructure were changed.
+
+Commands executed with pinned requirements in the existing verification venv:
+
+```powershell
+python -B scripts/verify_fullstack.py --postgres-major 18 --integration-only
+python -B scripts/verify_fullstack.py --postgres-major 18 --backend-tests accounts/test_registration_gate.py accounts/test_registration_security.py accounts/test_v2_auth.py accounts/test_auth_versions.py accounts/test_legacy_throttling.py polls/tests/test_ballots.py polls/tests/test_ballot_concurrency.py polls/tests/test_release_preflight.py
+python -m flake8 --extend-exclude "*/migrations/*" accounts polls alx_project_nexus manage.py scripts integration
+python -B scripts/audit_secrets.py
+git diff --check
+```
+
+- 22 PostgreSQL 18 integration tests passed, no failures/skips. The two new
+  journeys passed in bridge AND ballot-only mode. They validate gate rejection,
+  explicit login, refresh restoration, create/publish/discover, current-user
+  ballot replacement, results privacy, locked configuration, logout and pause
+  without losing an existing ballot. This is local evidence, not live cutover.
+- Nested Playwright runs: 10 passed, no failures/skips, including actual React
+  creator/voter journeys, private links, profile/password/session revocation,
+  mobile navigation, and automated accessibility checks at desktop/tablet/mobile.
+- 115 focused backend tests plus 28 subtests passed, including all ten tests in
+  test_ballot_concurrency.py, JWT/CSRF/revocation, registration gates, password
+  validation, legacy auth throttling, ballot integrity and release preflight.
+- Both isolated runner invocations passed Django system checks and
+  makemigrations --check --dry-run (no changes). Lint, current-source secret
+  audit and whitespace checks passed. One existing drf_yasg deprecation warning
+  appeared in each pytest run; assertions were not weakened/silenced.
+- New task-owned tmpfs PostgreSQL resources were cleaned; pre-existing
+  container, volume and network inventories were preserved. Test accounts,
+  polls and ballots existed ONLY in the disposable local databases.
+- Complete standalone frontend/unit and backend suites were not repeated:
+  only tests/documentation changed. Existing real-browser/HTTP integration and
+  the targeted security/concurrency suites were rerun as recorded above.
+
+No Render environment edit/redeployment, Neon connection, reconciliation,
+remote SQL, demo-account creation, registration/vote/recovery activation,
+commit or push was performed. Next owner approval must cover fresh read-only
+Neon evidence, then the two runtime enable flags and labelled live synthetic
+journeys/demo polls. Stop for any discrepancy; preserve recovery disabled and
+all existing security/least-privilege gates. Free quotas and actual abuse
+exposure remain operator concerns, not guarantees from local automated tests.
+
+
+Portfolio follow-up (2026-11-15): the approved private runtime-only Neon
+read-only preflight has now passed: verified TLS/grants, 40 migrations,
+valid schema, no quarantines or unconverted history, zero counter drift,
+empty application data, and intact encrypted baseline backup. No remote
+writes or feature activation occurred. The owner approved the two Render
+flags and two synthetic accounts/three public demo polls; live activation,
+workflow and restart/persistence verification remain pending. See STAGING.md's
+activation checklist; do not repeat migrations, grants or initial deployment.

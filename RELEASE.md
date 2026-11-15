@@ -454,3 +454,32 @@ role/health behavior. Recovery remains disabled and voting remains bridge/false.
 Hosting proxy/HTTPS/origins, historical credential sign-off, cloud backup/
 recovery evidence, persistence/cold starts, human accessibility and reviewed
 candidate CI/publication remain release gates. No push/commit is authorized.
+
+
+## Recruiter demonstration activation: narrow follow-up approval
+
+The existing Render staging service at ffa259a passed 44 read-only/safely
+rejected-request checks, including live Neon migration readiness and ingress
+spoofing. It is not yet certified as an interactive public demonstration:
+signup/ballot writes are paused and no live account/vote journey was executed.
+STAGING.md's "Recruiter-ready portfolio activation" section is the current
+narrow checklist: local disposable journey tests, fresh read-only all-poll
+preflight, preserved backup, owner approval for the two enable flags and
+synthetic records, real journey, then persistence/security rechecks. Leave
+recovery disabled and authority=bridge; no schema/grant change, main merge,
+paid resource, automated seed or forced ballot-only cutover is required.
+Existing anomaly, historical-secret review and rollback safeguards still apply.
+A successful public-list GET does not replace database reconciliation, and
+local tests never authorize remote writes. No feature flags were changed by
+preparing this checklist. Low-traffic Free-tier abuse/cold-start limitations
+must be disclosed and quota usage checked manually before portfolio launch.
+
+
+Portfolio follow-up (2026-11-15): the approved private runtime-only Neon
+read-only preflight has now passed: verified TLS/grants, 40 migrations,
+valid schema, no quarantines or unconverted history, zero counter drift,
+empty application data, and intact encrypted baseline backup. No remote
+writes or feature activation occurred. The owner approved the two Render
+flags and two synthetic accounts/three public demo polls; live activation,
+workflow and restart/persistence verification remain pending. See STAGING.md's
+activation checklist; do not repeat migrations, grants or initial deployment.
