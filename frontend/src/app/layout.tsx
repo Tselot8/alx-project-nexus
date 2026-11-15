@@ -2,11 +2,12 @@ import { useEffect, useRef, useState } from 'react'
 import { Link, NavLink, Outlet, useLocation } from 'react-router'
 import { useServices, useSession } from './providers'
 import { Button, Feedback, Initials } from '../ui/components'
+import { NexusMark } from '../ui/illustrations'
 
 const links = [{ to: '/', label: 'Home' }, { to: '/polls', label: 'Explore polls' }, { to: '/my-polls', label: 'My polls' }]
 function Brand() {
   return <Link to="/" className="brand" aria-label="Project Nexus home">
-    <span className="brand-mark" aria-hidden="true"><i /><i /><i /></span>Nexus<span className="brand-dot">.</span>
+    <NexusMark />Nexus<span className="brand-dot">.</span>
   </Link>
 }
 export function Layout({ notice }: { notice?: React.ReactNode }) {
@@ -59,7 +60,9 @@ export function Layout({ notice }: { notice?: React.ReactNode }) {
       <Outlet />
     </main>
     <footer className="site-footer"><div className="container footer-inner"><Brand />
-      <p>Your perspective. A clearer picture.</p><span>© {new Date().getFullYear()} Project Nexus</span>
+      <div><p>Good questions deserve a place to land. A small space for everyday opinions, shared curiosity, and your next conversation.</p></div>
+      <div className="footer-note"><span>© {new Date().getFullYear()} Project Nexus · Made for everyday perspectives.</span>
+        <span><Link to="/polls">Find a question</Link> / <Link to="/polls/new">Ask your own</Link></span></div>
     </div></footer>
   </div>
 }

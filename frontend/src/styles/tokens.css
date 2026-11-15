@@ -1,21 +1,32 @@
+@import './font.css';
+
 :root {
   color-scheme: light;
-  --background: #F7F8F6;
+  --background: #FAF8F3;
   --surface: #FFFFFF;
-  --text: #142B3B;
-  --muted: #526574;
-  --primary: #2455D6;
-  --primary-hover: #1D44AD;
-  --accent: #0F766E;
-  --border: #D9E1E3;
-  --control-border: #748795;
-  --danger: #A32639;
+  --text: #182B49;
+  --muted: #53616F;
+  --primary: #182B49;
+  --primary-hover: #2C4568;
+  --accent: #23616B;
+  --border: #DADBD8;
+  --control-border: #79838E;
+  --danger: #9D2941;
+  --periwinkle: #E5EAF9;
+  --coral: #F47C98;
+  --teal: #65B8C4;
+  --yellow: #F4C86A;
+  --paper: #FFFDF8;
   --radius: 1rem;
-  --radius-small: .65rem;
-  --shadow: 0 6px 26px rgb(20 43 59 / 4%);
-  --space: clamp(1rem, 3vw, 2rem);
-  --container: 75rem;
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --radius-small: .5rem;
+  --shadow: 0 4px 0 rgb(24 43 73 / 5%);
+  --space: clamp(1rem, 4vw, 3.5rem);
+  --container: 79rem;
+  --ease: cubic-bezier(.2,.65,.3,1);
+  --type-small: .8125rem;
+  --type-body: 1rem;
+  --type-display: clamp(3.5rem, 7.4vw, 7.25rem);
+  font-family: 'Manrope', 'Trebuchet MS', sans-serif;
   font-synthesis: none;
   text-rendering: optimizeLegibility;
 }

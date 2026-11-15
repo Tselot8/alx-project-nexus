@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router'
 import type { Category, PollSummary } from '../../api/contracts'
+import { ArrowMark } from '../../ui/illustrations'
 
 export function useNow(deadline?: string | null) {
   const [now, setNow] = useState(Date.now)
@@ -29,12 +30,13 @@ export function CategoryLabel({ id, categories }: { id: string | null; categorie
 }
 export function PollCard({ poll, categories, now }: { poll: PollSummary; categories: Category[]; now: number }) {
   return <article className="card poll-card">
-    <div className="poll-badges"><span className="pill">{pollState(poll, now)}</span>
-      <span className="metadata"><CategoryLabel id={poll.category} categories={categories} /></span></div>
+    <div className="poll-badges"><span className="poll-category"><CategoryLabel id={poll.category} categories={categories} /></span>
+      <span className="pill" data-status={pollState(poll, now)}>{pollState(poll, now)}</span></div>
     <h2><Link to={'/polls/' + poll.id}>{poll.question || 'Untitled draft'}</Link></h2>
     {poll.description && <p className="description-preview">{poll.description}</p>}
     <div className="poll-card-footer"><span>{poll.voting_mode === 'single' ? 'Single choice' : 'Multiple choice'}</span>
       <span>Public poll</span></div>
     <p className="metadata">{poll.expires_at ? <>Closing date: <DateLabel value={poll.expires_at} /></> : 'No scheduled closing date'}</p>
+    <div className="poll-card-action"><Link to={'/polls/' + poll.id} aria-label={'Open poll: ' + (poll.question || 'Untitled draft')}>View poll <ArrowMark diagonal /></Link></div>
   </article>
 }

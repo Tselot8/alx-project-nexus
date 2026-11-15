@@ -1,6 +1,7 @@
 import { Link, useParams } from 'react-router'
 import { useSession } from '../app/providers'
 import { Card, EmptyState, Initials } from '../ui/components'
+import { BallotArtwork } from '../ui/illustrations'
 
 export function FoundationPage({ kind }: { kind: 'explore' | 'detail' | 'mine' | 'create' | 'profile' }) {
   const params = useParams()
@@ -28,7 +29,7 @@ export function FoundationPage({ kind }: { kind: 'explore' | 'detail' | 'mine' |
   </section>
 }
 export function NotFound() {
-  return <section className="page-section"><Card><p className="eyebrow">404 · Page not found</p>
+  return <section className="page-section"><Card className="support-page"><div><p className="eyebrow">404 · Page not found</p>
     <h1>This page isn’t here.</h1><p>The address may have changed. Let’s find your way back.</p>
-    <Link className="button button--primary" to="/">Return home</Link></Card></section>
+    <Link className="button button--primary" to="/">Return home</Link></div><BallotArtwork compact /></Card></section>
 }

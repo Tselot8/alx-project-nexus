@@ -40,7 +40,7 @@ function Mine({ user }: { user: string }) {
     // Forward only known inputs to the API even if the browser URL contains extras.
     setParams(next)
   }
-  return <section className="discovery-section"><div className="page-heading"><p className="eyebrow">Your workspace</p>
+  return <section className="discovery-section creator-dashboard"><div className="page-heading"><p className="eyebrow">Your workspace</p>
     <h1>Good questions start with you.</h1><p className="page-lead">Your drafts, open questions, and completed polls. Only your own polls appear here.</p>
     <Link className="button button--primary" to="/polls/new">Create a poll</Link></div>
     {typeof location.state?.notice === 'string' && <Feedback tone="success">{location.state.notice}</Feedback>}
@@ -57,7 +57,7 @@ function Mine({ user }: { user: string }) {
       <Button onClick={() => { if (filters.page > 1) update({ page: '1' }); else void query.refetch() }}>Retry My polls</Button></Card>
       : <><p role="status">{query.data.count} {query.data.count === 1 ? 'poll' : 'polls'} found</p>
         {query.data.results.length ? <div className="poll-grid">{query.data.results.map(poll => <article className="card poll-card" key={poll.id}>
-          <div className="poll-badges"><span className="pill">{pollState(poll, now)}</span><span className="pill pill--neutral">{poll.visibility === 'private' ? 'Private' : 'Public'}</span></div>
+          <div className="poll-badges"><span className="pill" data-status={pollState(poll, now)}>{pollState(poll, now)}</span><span className="pill pill--neutral">{poll.visibility === 'private' ? 'Private' : 'Public'}</span></div>
           <h2><Link to={'/polls/' + poll.id + '/manage'}>{poll.question || 'Untitled draft'}</Link></h2>
           <p><CategoryLabel id={poll.category} categories={categories.data?.results || []} /></p>
           <p className="metadata">{poll.expires_at ? <>Closes <DateLabel value={poll.expires_at} /></> : 'No scheduled closing date'}</p>

@@ -66,7 +66,7 @@ function Workspace({ poll }: { poll: PollDetail }) {
   return <section className="page-section creator-workspace">
     <div className="workspace-topline"><Link to="/my-polls">← My polls</Link><Link to={'/polls/' + poll.id}>View poll</Link></div>
     <div className="page-heading"><p className="eyebrow">Creator workspace</p><h1 tabIndex={-1} ref={heading}>{poll.question || 'Untitled draft'}</h1>
-      <div className="poll-badges"><span className="pill">{pollState(poll, now)}</span><span className="pill pill--neutral">{poll.visibility === 'private' ? 'Private' : 'Public'}</span></div>
+      <div className="poll-badges"><span className="pill" data-status={pollState(poll, now)}>{pollState(poll, now)}</span><span className="pill pill--neutral">{poll.visibility === 'private' ? 'Private' : 'Public'}</span></div>
       <p className="metadata">Closing date: {poll.expires_at ? <DateLabel value={poll.expires_at} /> : 'No scheduled expiration'}</p>
     </div>
     {typeof location.state?.notice === 'string' && <Feedback>{location.state.notice}</Feedback>}

@@ -5,6 +5,7 @@ import { useServices, useSession } from '../app/providers'
 import { ApiError } from '../api/http'
 import { safeReturnTo } from '../auth/navigation'
 import { Button, Card, Feedback, Field } from '../ui/components'
+import { BallotArtwork } from '../ui/illustrations'
 
 export function AuthPage({ register = false }: { register?: boolean }) {
   const { session } = useServices()
@@ -36,11 +37,11 @@ export function AuthPage({ register = false }: { register?: boolean }) {
     } finally { setBusy(false) }
   }
   const alternate = (register ? '/login' : '/register') + '?returnTo=' + encodeURIComponent(destination)
-  return <section className="auth-layout"><div className="auth-intro"><p className="eyebrow">A place for your perspective</p>
+  return <section className="auth-layout"><div className="auth-intro"><div className="auth-copy">
+    <p className="eyebrow">Your place in the conversation</p>
     <h1>{register ? 'Every voice starts somewhere.' : 'Welcome back to Nexus.'}</h1>
-    <p className="page-lead">{register ? 'Join a community built on curiosity and shared understanding.' : 'Your questions. Your perspectives. Pick up where you left off.'}</p>
-    <div className="auth-aside"><span className="brand-mark" aria-hidden="true"><i /><i /><i /></span>
-      <p>Good questions make room for everyone.</p></div>
+    <p className="page-lead">{register ? 'A question you want to ask. An opinion you want to share. Make a little room for both.' : 'Good to see you again. Your questions and conversations are right where you left them.'}</p>
+    </div><div className="auth-art"><BallotArtwork compact /></div>
   </div><Card className="auth-card"><h2>{register ? 'Create your account' : 'Sign in'}</h2>
     <p>{register ? 'Start with the essentials.' : 'Use the email address for your account.'}</p>
     {typeof location.state?.accountNotice === 'string' && <Feedback>{location.state.accountNotice}</Feedback>}

@@ -56,7 +56,7 @@ describe('discovery and home', () => {
     app()
     expect(await screen.findByRole('link', { name: publicPoll.question })).toHaveAttribute('href', '/polls/' + pollId)
     expect(screen.getByText('1 public poll found')).toBeInTheDocument()
-    expect(screen.getByText('Community', { selector: 'span.metadata' })).toBeInTheDocument()
+    expect(screen.getByText('Community', { selector: 'span.poll-category' })).toBeInTheDocument()
     expect(screen.getByText('Single choice')).toBeInTheDocument()
     expect(screen.queryByText(/participants|selections cast/i)).not.toBeInTheDocument()
     expect(fetcher.mock.calls.some(([path]) => String(path).includes('/results/'))).toBe(false)
@@ -508,7 +508,7 @@ it('does not keep an invalid root share error on later unrelated home visits', a
   await userEvent.click(screen.getByRole('link', { name: 'Explore public polls' }))
   await screen.findByRole('heading', { name: 'A good question is a great beginning.' })
   await userEvent.click(within(screen.getByRole('navigation', { name: 'Main' })).getByRole('link', { name: 'Home' }))
-  expect(await screen.findByRole('heading', { level: 1, name: /Different voices/ })).toBeInTheDocument()
+  expect(await screen.findByRole('heading', { level: 1, name: /Put it to/ })).toBeInTheDocument()
 })
 
 

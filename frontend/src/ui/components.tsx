@@ -1,5 +1,6 @@
 import { useId } from 'react'
 import type { ButtonHTMLAttributes, InputHTMLAttributes, ReactNode } from 'react'
+import { PaperMark } from './illustrations'
 
 export function Button({ variant = 'primary', pending = false, children, disabled, ...props }:
   ButtonHTMLAttributes<HTMLButtonElement> & { variant?: 'primary' | 'secondary' | 'quiet'; pending?: boolean }) {
@@ -28,7 +29,7 @@ export function Loading({ label = 'Loading…' }: { label?: string }) {
   return <div className="loading" role="status"><span className="spinner" aria-hidden="true" />{label}</div>
 }
 export function EmptyState({ title, children }: { title: string; children: ReactNode }) {
-  return <div className="empty-state"><span className="empty-symbol" aria-hidden="true">↗</span>
+  return <div className="empty-state"><span className="empty-symbol" aria-hidden="true"><PaperMark /></span>
     <h2>{title}</h2><p>{children}</p></div>
 }
 export function Initials({ name }: { name: string }) {

@@ -15,7 +15,7 @@ export function CreatePoll() {
   const [uncertain, setUncertain] = useState(false)
   const [retryConfirmation, setRetryConfirmation] = useState(false)
   const created = useRef<string | null>(null)
-  return <section className="page-section"><div className="page-heading"><p className="eyebrow">Create a poll</p>
+  return <section className="page-section create-page"><div className="page-heading"><p className="eyebrow">Create a poll</p>
     <h1>What would you like to ask?</h1><p className="page-lead">One good question. A space for every perspective.</p></div>
     <ActionFeedback action={action} />
     {uncertain && <Feedback tone="error">Draft creation could not be confirmed. It may already have been saved. Check My polls before starting another draft.

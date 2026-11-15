@@ -3,6 +3,7 @@ import { useServices, useSession } from '../app/providers'
 import { useCategories, usePublicPolls } from '../features/polls/api'
 import { PollCard, useNow } from '../features/polls/presentation'
 import { Button, Card, EmptyState, Feedback, Loading } from '../ui/components'
+import { ArrowMark, BallotArtwork, PaperMark } from '../ui/illustrations'
 
 export function Home() {
   const { api } = useServices()
@@ -12,24 +13,21 @@ export function Home() {
   const now = useNow()
   return <>
     <section className="hero">
-      <div><p className="eyebrow"><span className="status-dot" />A little curiosity goes a long way</p>
-        <h1>Different voices.<br /><span className="text-blue">Clearer decisions.</span></h1>
-        <p className="hero-description">A place for good questions and thoughtful answers. Discover public polls, bring people together, and make space for every perspective.</p>
-        <div className="action-row"><Link to="/polls" className="button button--primary">Browse polls <span aria-hidden="true">↗</span></Link>
+      <div className="hero-copy"><p className="eyebrow">A little curiosity. A lot of possibility.</p>
+        <h1>Put it to<br /><span className="vote-word">a vote.</span></h1>
+        <p className="hero-description">Big ideas, everyday dilemmas, and everything in between. Ask a question, hear a few different takes, and see where we stand.</p>
+        <div className="action-row"><Link to="/polls" className="button button--primary">Browse polls <ArrowMark /></Link>
           <Link to="/polls/new" className="button button--secondary">Create a poll</Link></div>
-        <p className="supporting-copy">{session.status === 'authenticated' ? 'Welcome back. Find your next good question.' : 'Browse freely. Sign in to vote and share your perspective.'}</p>
+        <p className="supporting-copy">{session.status === 'authenticated' ? 'Welcome back. There is always another good question.' : 'No account needed to look around. Sign in when you want to weigh in.'}</p>
       </div>
-      <Card className="signal-card">
-        <span className="pill">A clearer signal</span>
-        <div className="signal-graphic" aria-hidden="true"><div /><div /><div /><div /></div>
-        <h2>Better questions.<br />Shared understanding.</h2>
-        <p>From a quick check-in to the next big idea, start with the people who matter.</p>
-        <span className="signal-caption"><span className="status-dot" />Ask · Share · Understand</span>
-      </Card>
+      <figure className="hero-visual"><BallotArtwork />
+        <figcaption className="art-caption">Different perspectives. Shared possibilities.</figcaption>
+      </figure>
     </section>
-    <section className="intro-section" aria-labelledby="recent-polls">
-      <div className="results-topline"><div><p className="eyebrow">Fresh perspectives</p><h2 id="recent-polls">Recent public polls</h2></div>
-        <Link to="/polls">Explore all polls</Link></div>
+    <div className="home-rule"><span>Everyday questions, open conversations</span><span>Your choice, yours to update while voting is open</span></div>
+    <section className="intro-section home-polls" aria-labelledby="recent-polls">
+      <div className="results-topline"><div><p className="eyebrow">On the table</p><h2 id="recent-polls">Recent public polls</h2></div>
+        <Link to="/polls">Explore all polls <ArrowMark /></Link></div>
       {polls.isPending ? <Loading label="Loading recent polls…" /> : polls.isError ? <Card>
         <Feedback tone="error">We could not load recent polls.</Feedback>
         <Button variant="secondary" onClick={() => { void polls.refetch() }}>Retry recent polls</Button>
@@ -37,14 +35,15 @@ export function Home() {
         <PollCard key={poll.id} poll={poll} categories={categories.data?.results || []} now={now} />)}</div>
         : <Card><EmptyState title="The next question could be yours.">No public polls are available yet. Check back soon or start a poll of your own.</EmptyState></Card>}
     </section>
-    <section className="intro-section" aria-labelledby="possibilities"><div className="section-heading">
-      <p className="eyebrow">Thoughtful by design</p><h2 id="possibilities">One question. More possibilities.</h2></div>
-      <div className="feature-grid">{[
-        ['01', 'Find your curiosity', 'Explore public questions by topic and discover perspectives beyond your own.'],
-        ['02', 'Understand the question', 'Read the options, closing date, and results policy before participating.'],
-        ['03', 'Bring people together', 'Create a poll, share it with others, and explore the results together.'],
-      ].map(([number, title, text]) => <Card key={number}><span className="feature-number">{number}</span>
-        <h3>{title}</h3><p>{text}</p></Card>)}</div>
+    <section className="how-it-works" aria-labelledby="possibilities">
+      <div className="how-intro"><PaperMark /><h2 id="possibilities">A good question makes room for everyone.</h2>
+        <p>No long setup. Just something worth asking, and people with a point of view.</p>
+        <Link className="button button--secondary" to="/polls/new">Start with your question <ArrowMark diagonal /></Link></div>
+      <ol>{[
+        ['01', 'Ask something real.', 'Pick your question, add a few options, and decide how you want to hear from people.'],
+        ['02', 'Make your choice.', 'Choose an answer or a few. You can update your complete ballot while the poll is open.'],
+        ['03', 'See the bigger picture.', 'Explore aggregate results when the poll’s results policy allows it. A fresh perspective is always welcome.'],
+      ].map(([number, title, text]) => <li key={number}><span aria-hidden="true">{number}</span><div><h3>{title}</h3><p>{text}</p></div></li>)}</ol>
     </section>
   </>
 }

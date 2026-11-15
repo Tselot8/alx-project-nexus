@@ -19,11 +19,14 @@ function contrast(first: string, second: string) {
   const a = luminance(first), b = luminance(second)
   return (Math.max(a, b) + .05) / (Math.min(a, b) + .05)
 }
-describe('Clear Signal palette contrast', () => {
+describe('Civic editorial palette contrast', () => {
   it.each(['background', 'surface'])('meets normal-text contrast on %s', background => {
     for (const foreground of ['text', 'muted', 'primary', 'accent', 'danger']) {
       expect(contrast(color(foreground), color(background))).toBeGreaterThanOrEqual(4.5)
     }
+  })
+  it.each(['periwinkle', 'coral', 'teal', 'yellow', 'paper'])('keeps ink readable on the %s accent', background => {
+    expect(contrast(color('text'), color(background))).toBeGreaterThanOrEqual(4.5)
   })
   it('meets control/focus contrast and inverse primary-button contrast', () => {
     expect(contrast(color('control-border'), color('surface'))).toBeGreaterThanOrEqual(3)

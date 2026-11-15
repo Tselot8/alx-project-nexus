@@ -31,7 +31,7 @@ function AccountSettings({ user }: { user: Account }) {
       setValues(next); setSaved(next)
     }, 'Profile saved.')
   }
-  return <section className="page-section"><div className="page-heading"><p className="eyebrow">Private profile and settings</p><h1>A little more you.</h1></div>
+  return <section className="page-section profile-page"><div className="page-heading"><p className="eyebrow">Private profile and settings</p><h1>A little more you.</h1></div>
     <Card className="profile-card"><Initials name={user.username} /><div><h2>{user.username}</h2><p>{user.email}</p></div><span className="pill">Only visible to you</span></Card>
     <div className="settings-grid"><Card><h2>Profile settings</h2><p>Your email is read-only. Email changes and account deletion are not available.</p>
       <ActionFeedback action={action} />
@@ -87,7 +87,7 @@ function PasswordChange({ profileDirty }: { profileDirty: boolean }) {
   </Card>
 }
 export function RecoveryUnavailable() {
-  return <section className="page-section"><Card><p className="eyebrow">Account recovery</p>
+  return <section className="page-section profile-page"><Card><p className="eyebrow">Account recovery</p>
     <h1>Password recovery is not available yet.</h1>
     <Feedback>Reset emails cannot be sent while recovery is unavailable. No reset credentials are accepted on this page.</Feedback>
     <p>If you can sign in, change your password in your private account settings.</p>

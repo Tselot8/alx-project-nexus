@@ -37,7 +37,7 @@ export function PollDetailPage() {
   const shared = shares.has(id) && !owner
   return <section className="page-section detail-section">
     <Link className="back-link" to="/polls">← Explore polls</Link>
-    <div className="poll-badges"><span className="pill">{state}</span><span className="pill pill--neutral">{poll.visibility === 'private' ? 'Private · unlisted' : 'Public poll'}</span></div>
+    <div className="poll-badges"><span className="pill" data-status={state}>{state}</span><span className="pill pill--neutral">{poll.visibility === 'private' ? 'Private · unlisted' : 'Public poll'}</span></div>
     <h1>{poll.question || 'Untitled draft'}</h1>
     <div className="detail-metadata"><span><CategoryLabel id={poll.category} categories={categories.data?.results || []} /></span>
       {owner && <span>Created by you</span>}

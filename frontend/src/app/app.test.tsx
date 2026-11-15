@@ -18,7 +18,7 @@ function renderApp(path = '/', services = createServices()) {
 }
 describe('routes and the accessible application shell', () => {
   it.each([
-    ['/', 'Different voices.'],
+    ['/', 'Put it to'],
     ['/polls', 'A good question is a great beginning.'],
     ['/polls/' + pollId, 'When should our community meet?'],
     ['/login', 'Welcome back to Nexus.'],
