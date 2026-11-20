@@ -3,6 +3,7 @@ import { Link, NavLink, Outlet, useLocation } from 'react-router'
 import { useServices, useSession } from './providers'
 import { Button, Feedback, Initials } from '../ui/components'
 import { NexusMark } from '../ui/illustrations'
+import { ThemeControl } from '../ui/theme-control'
 
 const links = [{ to: '/', label: 'Home' }, { to: '/polls', label: 'Explore polls' }, { to: '/my-polls', label: 'My polls' }]
 function Brand() {
@@ -40,7 +41,7 @@ export function Layout({ notice }: { notice?: React.ReactNode }) {
     <header className="site-header" onKeyDown={event => {
       if (event.key === 'Escape' && open) { close(); menu.current?.focus() }
     }}>
-      <div className="header-inner container"><Brand />
+      <div className="header-inner container"><Brand /><ThemeControl />
         <nav className="desktop-nav" aria-label="Main">{links.map(link =>
           <NavLink key={link.to} to={link.to} end={link.to === '/'}>{link.label}</NavLink>)}</nav>
         <div className="desktop-actions">{accountLinks}<Link to="/polls/new" className="button button--primary">Create poll <span aria-hidden="true">+</span></Link></div>

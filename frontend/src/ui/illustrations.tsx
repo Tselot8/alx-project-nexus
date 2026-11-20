@@ -1,9 +1,14 @@
 import ballotGarden from '../assets/ballot-garden.svg'
 import conversationPapers from '../assets/conversation-papers.svg'
+import ballotGardenDark from '../assets/ballot-garden-dark.svg'
+import conversationPapersDark from '../assets/conversation-papers-dark.svg'
+import { useTheme } from './theme-control'
 
 export function BallotArtwork({ compact = false }: { compact?: boolean }) {
+  const dark = useTheme().endsWith(':dark')
+  const source = compact ? (dark ? conversationPapersDark : conversationPapers) : (dark ? ballotGardenDark : ballotGarden)
   return <img className={compact ? 'ballot-artwork ballot-artwork--compact' : 'ballot-artwork'}
-    src={compact ? conversationPapers : ballotGarden} alt="" aria-hidden="true" decoding="async" />
+    src={source} alt="" aria-hidden="true" decoding="async" />
 }
 export function NexusMark() {
   return <svg className="brand-mark" viewBox="0 0 36 36" fill="none" aria-hidden="true" focusable="false">

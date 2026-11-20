@@ -1,6 +1,9 @@
 import { expect, test } from '@playwright/test'
 import { create, credentials, localOnly, login, noStoredSecrets, register, transition } from './helpers'
 
+// Exercise unchanged real application workflows in the new dark theme.
+test.use({ colorScheme: 'dark' })
+
 test.beforeEach(async ({ context, baseURL }) => { await localOnly(context, baseURL!) })
 
 test('creator publishes, voter replaces an atomic ballot, results and lifecycle remain consistent', async ({ page, browser, baseURL }) => {
@@ -28,7 +31,7 @@ test('creator publishes, voter replaces an atomic ballot, results and lifecycle 
     await expect(page.locator('.managed-options')).toContainText('Late evening')
     await transition(page, 'publish')
   })
-  const voter = await browser.newContext({ baseURL: baseURL! })
+  const voter = await browser.newContext({ baseURL: baseURL!, colorScheme: 'dark' })
   await localOnly(voter, baseURL!)
   try {
     const participant = await voter.newPage()
@@ -88,7 +91,7 @@ test('private fragments grant scoped reads, disappear from history, and revoked 
     expect(new URL(link).hash.startsWith('#share=')).toBe(true)
     await noStoredSecrets(page)
   })
-  const guest = await browser.newContext({ baseURL: baseURL! })
+  const guest = await browser.newContext({ baseURL: baseURL!, colorScheme: 'dark' })
   await localOnly(guest, baseURL!)
   try {
     const reader = await guest.newPage()
@@ -145,7 +148,7 @@ test('private fragments grant scoped reads, disappear from history, and revoked 
 
 test('profile updates and password changes revoke prior browser sessions, then logout restores no identity', async ({ page, browser, baseURL }) => {
   const user = await register(page, credentials('account'))
-  const old = await browser.newContext({ baseURL: baseURL! })
+  const old = await browser.newContext({ baseURL: baseURL!, colorScheme: 'dark' })
   await localOnly(old, baseURL!)
   try {
     const oldPage = await old.newPage()

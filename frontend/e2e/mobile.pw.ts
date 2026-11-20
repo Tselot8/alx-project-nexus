@@ -1,6 +1,9 @@
 import { expect, test } from '@playwright/test'
 import { localOnly, noStoredSecrets, register } from './helpers'
 
+// Exercise unchanged real application workflows in the new dark theme.
+test.use({ colorScheme: 'dark' })
+
 test('mobile menu, session restoration, protected navigation and logout work at 390px', async ({ page, context, baseURL }) => {
   await localOnly(context, baseURL!)
   await test.step('register and navigate with the mobile menu', async () => {

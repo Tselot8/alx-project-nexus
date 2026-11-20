@@ -5,8 +5,10 @@ import { fileURLToPath } from 'node:url'
 
 const tokens = readFileSync(join(dirname(fileURLToPath(import.meta.url)), 'tokens.css'), 'utf8')
 
-function color(name: string) {
-  const value = tokens.split('--' + name + ':')[1]?.trim().slice(0, 7)
+const dark = readFileSync(join(dirname(fileURLToPath(import.meta.url)), 'dark.css'), 'utf8')
+
+function color(name: string, source = tokens) {
+  const value = source.split('--' + name + ':')[1]?.trim().slice(0, 7)
   if (!value || !/^#[a-f0-9]{6}$/i.test(value)) throw new Error('Missing design token: ' + name)
   return value
 }
@@ -32,5 +34,22 @@ describe('Civic editorial palette contrast', () => {
     expect(contrast(color('control-border'), color('surface'))).toBeGreaterThanOrEqual(3)
     expect(contrast(color('primary'), color('surface'))).toBeGreaterThanOrEqual(4.5)
     expect(contrast(color('primary-hover'), color('surface'))).toBeGreaterThanOrEqual(4.5)
+  })
+})
+
+
+describe('Editorial dark palette contrast', () => {
+  it.each(['background', 'surface', 'paper', 'surface-high', 'selection'])('keeps body text and accents readable on %s', background => {
+    for (const foreground of ['text', 'muted', 'primary', 'accent', 'danger']) {
+      expect(contrast(color(foreground, dark), color(background, dark))).toBeGreaterThanOrEqual(4.5)
+    }
+  })
+  it('keeps controls, focus, buttons and disabled labels distinguishable', () => {
+    expect(contrast(color('control-border', dark), color('paper', dark))).toBeGreaterThanOrEqual(3)
+    expect(contrast(color('primary', dark), color('surface-high', dark))).toBeGreaterThanOrEqual(3)
+    expect(contrast(color('ink', dark), color('primary', dark))).toBeGreaterThanOrEqual(4.5)
+    expect(contrast(color('ink', dark), color('primary-hover', dark))).toBeGreaterThanOrEqual(4.5)
+    expect(contrast(color('disabled-text', dark), color('disabled', dark))).toBeGreaterThanOrEqual(4.5)
+    for (const fill of ['coral', 'teal', 'yellow']) expect(contrast(color(fill, dark), '#3D4C60')).toBeGreaterThanOrEqual(3)
   })
 })

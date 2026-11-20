@@ -1,0 +1,99 @@
+/* Dark mode is an independent art direction. Every rule is scoped so the
+   approved light palette, typography and spacing remain unchanged. */
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --background: #151C27;
+  --surface: #1D2835;
+  --text: #F5F2EB;
+  --muted: #B7C1CC;
+  --primary: #FF8FA3;
+  --primary-hover: #FFA6B6;
+  --accent: #7CCDD0;
+  --border: #394758;
+  --control-border: #7B8EA3;
+  --danger: #FFADBA;
+  --periwinkle: #2C354D;
+  --coral: #FF8FA3;
+  --teal: #7CCDD0;
+  --yellow: #F4D38A;
+  --paper: #202D3A;
+  --ink: #182B49;
+  --surface-high: #253241;
+  --selection: #25464E;
+  --disabled: #2B3746;
+  --disabled-text: #BCC6D2;
+  --shadow: 0 3px 0 rgb(0 0 0 / 14%);
+}
+:root[data-theme="dark"] ::selection { color: var(--ink); background: var(--teal); }
+:root[data-theme="dark"] .site-header { border-color: var(--border); }
+:root[data-theme="dark"] .site-footer { background: #1B2634; border-color: var(--border); }
+:root[data-theme="dark"] .footer-note { border-color: #435269; }
+:root[data-theme="dark"] .brand-mark > path:first-child { fill: var(--teal); }
+:root[data-theme="dark"] .brand-mark > path:nth-child(2),
+:root[data-theme="dark"] .brand-mark > path:last-child { stroke: var(--ink); }
+:root[data-theme="dark"] .button--primary { color: var(--ink); box-shadow: 0 3px 0 rgb(0 0 0 / 20%); }
+:root[data-theme="dark"] .button--primary:hover:not(:disabled) { box-shadow: 0 5px 0 rgb(0 0 0 / 20%); }
+:root[data-theme="dark"] .button--secondary { color: var(--text); border-color: var(--control-border); }
+:root[data-theme="dark"] .button--secondary:hover:not(:disabled) { background: #29394A; box-shadow: 0 3px 0 rgb(0 0 0 / 14%); }
+:root[data-theme="dark"] .button--quiet:hover:not(:disabled) { background: #2B3848; }
+:root[data-theme="dark"] .button:disabled { background: var(--disabled); color: var(--disabled-text); border-color: #526273; box-shadow: none; }
+:root[data-theme="dark"] .avatar { border-color: #7B8EA3; }
+:root[data-theme="dark"] .profile-card .avatar { color: var(--ink); }
+:root[data-theme="dark"] .vote-word::after { background: #6A5130; }
+:root[data-theme="dark"] .home-rule { border-top-color: #7B8EA3; }
+:root[data-theme="dark"] .home-rule span::before { border-color: var(--yellow); }
+:root[data-theme="dark"] .how-it-works { border-top-color: #7B8EA3; }
+:root[data-theme="dark"] .discovery-controls { background: #202C3D; border-color: transparent; }
+:root[data-theme="dark"] .poll-card { background: #1D2835; border-color: #405168; }
+:root[data-theme="dark"] .poll-card:nth-child(4n + 1) { background: #223047; }
+:root[data-theme="dark"] .poll-card:nth-child(4n + 4) { background: #302D2C; }
+:root[data-theme="dark"] .poll-card:hover { box-shadow: 0 5px 0 rgb(0 0 0 / 14%); }
+:root[data-theme="dark"] .poll-card-footer { border-color: #485970; }
+:root[data-theme="dark"] .poll-category::before { border-color: var(--teal); }
+:root[data-theme="dark"] .pill { color: #B0E5D7; background: #203D3D; }
+:root[data-theme="dark"] .pill[data-status^="Closed"],
+:root[data-theme="dark"] .pill[data-status="Expired"] { color: var(--yellow); background: #453828; }
+:root[data-theme="dark"] .pill[data-status="Draft"] { color: #D3DDFC; background: #303C54; }
+:root[data-theme="dark"] .pill[data-status="Archived"] { color: #CBD3DD; background: #303B47; }
+:root[data-theme="dark"] .pill--neutral { color: #D3DDFC; background: var(--periwinkle); }
+:root[data-theme="dark"] .profile-card .pill { color: var(--text); background: var(--surface); }
+:root[data-theme="dark"] .detail-grid aside > .card,
+:root[data-theme="dark"] .workspace-grid aside > .card { background: #243248; }
+:root[data-theme="dark"] .vote-option:hover { background: #293C4E; }
+:root[data-theme="dark"] .vote-option[data-selected="true"] { background: var(--selection); border-color: var(--teal); box-shadow: 3px 3px 0 var(--teal); }
+:root[data-theme="dark"] .vote-option > input,
+:root[data-theme="dark"] .metric-control input,
+:root[data-theme="dark"] .checkbox-label input { accent-color: var(--teal); }
+:root[data-theme="dark"] .vote-option:has(input:disabled) { background: #1E2936; border-color: #596B7F; cursor: not-allowed; }
+:root[data-theme="dark"] .vote-option:has(input:disabled) > span { color: var(--disabled-text); }
+:root[data-theme="dark"] .vote-option:has(input:disabled)[data-selected="true"] { background: #243C44; border-color: #7CADAE; box-shadow: none; }
+:root[data-theme="dark"] .results-card { border-top-color: var(--teal); }
+:root[data-theme="dark"] .metric-control { background: var(--surface-high); }
+:root[data-theme="dark"] .result-bar-track { background: #3D4C60; }
+:root[data-theme="dark"] .result-bar-track > div { background: var(--coral); }
+:root[data-theme="dark"] .result-bar-row:nth-child(3n + 2) .result-bar-track > div { background: var(--teal); }
+:root[data-theme="dark"] .result-bar-row:nth-child(3n) .result-bar-track > div { background: var(--yellow); }
+:root[data-theme="dark"] .results-table thead { background: #2B3A50; }
+:root[data-theme="dark"] .results-table th,
+:root[data-theme="dark"] .results-table td { border-color: #485970; }
+:root[data-theme="dark"] .auth-card { border-color: #64758A; box-shadow: 7px 7px 0 #2D3C52; }
+:root[data-theme="dark"] .field input,
+:root[data-theme="dark"] .field select,
+:root[data-theme="dark"] .field textarea { background: #182431; }
+:root[data-theme="dark"] .field input:focus,
+:root[data-theme="dark"] .field select:focus,
+:root[data-theme="dark"] .field textarea:focus { background: #1F303F; box-shadow: 3px 3px 0 #375E68; }
+:root[data-theme="dark"] .field input::placeholder,
+:root[data-theme="dark"] .field textarea::placeholder { color: #A9B7C7; }
+:root[data-theme="dark"] .field input:disabled,
+:root[data-theme="dark"] .field select:disabled,
+:root[data-theme="dark"] .field textarea:disabled { background: #273443; color: #BEC8D4; border-color: #596B7F; }
+:root[data-theme="dark"] .locked-settings { background: #243146; }
+:root[data-theme="dark"] .locked-settings:disabled { background: #25303C; }
+:root[data-theme="dark"] .editor-card form > fieldset > fieldset:last-of-type { background: #23303D; }
+:root[data-theme="dark"] .confirmation { background: #332F29; border-color: #998365; box-shadow: 4px 4px 0 #242931; }
+:root[data-theme="dark"] .feedback { background: #243349; border-color: #50637A; color: var(--text); }
+:root[data-theme="dark"] .feedback--error { background: #3E2835; border-color: #8F5F73; color: #FFC0CB; }
+:root[data-theme="dark"] .feedback--success { background: #203B35; border-color: #4E7F6C; color: #B0E5CD; }
+:root[data-theme="dark"] .theme-panel { background: #253241; border-color: var(--control-border); box-shadow: 0 8px 20px rgb(0 0 0 / 20%); }
+:root[data-theme="dark"] .theme-panel legend { background: #253241; }

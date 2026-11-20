@@ -23,7 +23,7 @@ export default defineConfig({
   },
   projects: [
     { name: 'desktop-chrome', testMatch: '**/journeys.pw.ts' },
-    { name: 'qa-desktop', testMatch: ['**/qa.pw.ts', '**/visual.pw.ts'] },
+    { name: 'qa-desktop', testMatch: ['**/qa.pw.ts', '**/visual.pw.ts', '**/theme.pw.ts'] },
     { name: 'qa-tablet', testMatch: '**/qa.pw.ts', use: { viewport: { width: 768, height: 1024 }, hasTouch: true } },
     { name: 'qa-mobile', testMatch: '**/qa.pw.ts', use: { viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true } },
     { name: 'mobile-chrome', testMatch: '**/mobile.pw.ts',
